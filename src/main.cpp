@@ -1,54 +1,58 @@
-/*
-Raylib example file.
-This is an example main file for a simple raylib project.
-Use this as a starting point or replace it with your code.
-
-by Jeffery Myers is marked with CC0 1.0. To view a copy of this license, visit https://creativecommons.org/publicdomain/zero/1.0/
-
-*/
-
 #include "raylib.h"
-
-#include "resource_dir.h"	// utility header for SearchAndSetResourceDir
+#include "raymath.h"
+#include "resource_dir.h"
+#include "player.h"
 
 int main ()
 {
-	// Tell the window to use vsync and work on high DPI displays
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
-
-	// Create the window and OpenGL context
-	InitWindow(1280, 800, "Hello Raylib");
-
-	// Utility function from resource_dir.h to find the resources folder and set it as the current working directory so we can load from it
+	SetTargetFPS(60);
+	InitWindow(1280, 720, "Automa-tag: Ryan's Revenge");
 	SearchAndSetResourceDir("resources");
 
-	// Load a texture from the resources directory
-	Texture wabbit = LoadTexture("wabbit_alpha.png");
-	
-	// game loop
-	while (!WindowShouldClose())		// run the loop untill the user presses ESCAPE or presses the Close button on the window
-	{
-		// drawing
-		BeginDrawing();
+	int currScreen = 0;
+	bool playerInit = false;
+	Rectangle button = { 350, 280, 100, 40 };
 
-		// Setup the back buffer for drawing (clear color and depth buffers)
-		ClearBackground(BLACK);
-
-		// draw some text using the default font
-		DrawText("Hello Raylib", 200,200,20,WHITE);
-
-		// draw our texture to the screen
-		DrawTexture(wabbit, 400, 200, WHITE);
-		
-		// end the frame and get ready for the next one  (display frame, poll input, etc...)
-		EndDrawing();
-	}
-
-	// cleanup
-	// unload our texture so it can be cleaned up
-	UnloadTexture(wabbit);
-
-	// destroy the window and cleanup the OpenGL context
+	while (!WindowShouldClose())
+    {
+        if (currScreen == 0)
+        {
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            {
+                Vector2 mousePos = GetMousePosition();
+                if (CheckCollisionPointRec(mousePos, button))
+                {
+                    currScreen  = 1;
+                    if (!playerInit)
+                    {
+                        Player_Init();
+                        playerInit = true;
+                    }
+                }
+            }
+            BeginDrawing();
+            ClearBackground(RAYWHITE);
+            DrawText("Main Menu", 600, 200, 40, DARKGRAY);
+            DrawRectangleRec(button, LIGHTGRAY);
+            DrawText("Start Game", button.x + 40, button.y + 15, 20, BLACK);
+            DrawFPS(10, 10);
+            EndDrawing();
+        }
+        else if (currScreen  == 1)
+        {
+            Player_UpdateDraw();
+            if (IsKeyPressed(KEY_ESCAPE))
+            {
+                currScreen  = 0;
+                if (playerInit)
+                {
+                    Player_Unload();
+                    playerInit = false;
+                }
+            }
+        }
+    }
 	CloseWindow();
 	return 0;
 }
