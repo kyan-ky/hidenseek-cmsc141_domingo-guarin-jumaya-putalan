@@ -9,7 +9,9 @@ public:
     Texture2D titleBg;
     Texture2D howToPlayBg;
     Texture2D gameOverBg;
-    Font gameFont; // Optional, otherwise uses default
+    //Font gameFont; // Optional, otherwise uses default
+    Font titleTextFont;
+    Font bodyTextFont;
 
     UIManager();
     void LoadAssets();
