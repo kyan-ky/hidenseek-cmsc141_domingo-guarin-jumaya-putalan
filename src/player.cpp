@@ -1,128 +1,187 @@
 #include "player.h"
-#include "raylib.h"
-#include "raymath.h"
-#include "resource_dir.h"
+#include "hider.h" // For CanTag, and alert check
+#include "map.h"
+#include "raymath.h" // For Vector2Normalize, Vector2Rotate, Vector2Angle
+#include <cmath>    // For atan2f, cosf, sinf, fabsf
 
-static RenderTexture2D charaBuffer;
-static Texture charaD, charaU, charaL, charaR;
-static Texture charaDrun, charaUrun, charaLrun, charaRrun;
-static Vector2 charaPos;
-static float charaSpeed = 200.0f;
-static float charaScale = 4.0f;
-static Texture currentAnim;
-static int frameCount = 6;
-static int currentFrame = 0;
-static float frameTime = 0.0f;
-static float frameDuration = 0.1f;
+Player::Player() : position({0, 0}), rotation(0.0f), speed(PLAYER_SPEED),
+                   sprintValue(SPRINT_MAX), isSprinting(false), showAlert(false) {
+    // Attempt to load texture, use placeholder if fails
+    if (FileExists("seeker_sprite.jpg")) {
+        texture = LoadTexture("seeker_sprite.jpg");
+    } else {
+        Image img = GenImageColor( (int)PLAYER_RADIUS * 2, (int)PLAYER_RADIUS * 2, PLAYER_COLOR);
+        texture = LoadTextureFromImage(img);
+        UnloadImage(img);
+    }
+     if (FileExists("alert_icon.png")) {
+        alertTexture = LoadTexture("alert_icon.png");
+    } else {
+        Image img = GenImageColor(20, 20, RED); // Simple red square for alert
+        ImageDrawText(&img, "!", 5, 0, 20, WHITE);
+        alertTexture = LoadTextureFromImage(img);
+        UnloadImage(img);
+    }
+}
 
+void Player::Init(Vector2 startPos) {
+    position = startPos;
+    rotation = 0.0f; // Facing right
+    sprintValue = SPRINT_MAX;
+    isSprinting = false;
+    showAlert = false;
+    UpdateVision();
+}
 
-void Player_Init(void) {
-    SearchAndSetResourceDir("resources");
+Vector2 Player::GetForwardVector() const {
+    return Vector2Rotate({1, 0}, rotation * DEG2RAD);
+}
 
-    charaBuffer = LoadRenderTexture(64, 64);
-	SetTextureFilter(charaBuffer.texture, TEXTURE_FILTER_POINT);
-    // Idle animation
-    charaD = LoadTexture("char_idle_down_anim_strip_6.png");
-	charaU = LoadTexture("char_idle_up_anim_strip_6.png");
-	charaL = LoadTexture("char_idle_left_anim_strip_6.png");
-	charaR = LoadTexture("char_idle_right_anim_strip_6.png");
-    // Run animation
-	charaDrun = LoadTexture("char_run_down_anim_strip_6.png");
-	charaUrun = LoadTexture("char_run_up_anim_strip_6.png");
-	charaLrun = LoadTexture("char_run_left_anim_strip_6.png");
-	charaRrun = LoadTexture("char_run_right_anim_strip_6.png");
-	charaPos = {200,200};
-	charaSpeed = 200.0f;
-	charaScale = 4.0f;
-	currentAnim = charaD;
+void Player::HandleInput(const Map& map) {
+    Vector2 moveDir = {0, 0};
+    isSprinting = IsKeyDown(KEY_LEFT_SHIFT) && sprintValue > 0;
+    float currentSpeed = isSprinting ? PLAYER_SPRINT_SPEED : PLAYER_SPEED;
+
+    if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)) moveDir.y -= 1;
+    if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN)) moveDir.y += 1;
+    if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) moveDir.x -= 1;
+    if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) moveDir.x += 1;
+
+    if (Vector2LengthSqr(moveDir) > 0) {
+        moveDir = Vector2Normalize(moveDir);
+        Vector2 newPos = Vector2Add(position, Vector2Scale(moveDir, currentSpeed * GetFrameTime()));
+
+        // Update rotation based on movement direction
+        rotation = atan2f(moveDir.y, moveDir.x) * RAD2DEG;
+
+        // Basic boundary collision (can be improved with map.IsPositionValid)
+        if (newPos.x - PLAYER_RADIUS < 0) newPos.x = PLAYER_RADIUS;
+        if (newPos.x + PLAYER_RADIUS > SCREEN_WIDTH) newPos.x = SCREEN_WIDTH - PLAYER_RADIUS;
+        if (newPos.y - PLAYER_RADIUS < 0) newPos.y = PLAYER_RADIUS;
+        if (newPos.y + PLAYER_RADIUS > SCREEN_HEIGHT) newPos.y = SCREEN_HEIGHT - PLAYER_RADIUS;
+        
+        // More robust collision check with map obstacles
+        if (map.IsPositionValid(newPos, PLAYER_RADIUS)) {
+             position = newPos;
+        } else {
+            // Try moving only X
+            Vector2 newPosX = {newPos.x, position.y};
+            if (map.IsPositionValid(newPosX, PLAYER_RADIUS)) position = newPosX;
+            else {
+                // Try moving only Y
+                Vector2 newPosY = {position.x, newPos.y};
+                if (map.IsPositionValid(newPosY, PLAYER_RADIUS)) position = newPosY;
+            }
+        }
+    }
+}
+
+void Player::Update(float deltaTime, const Map& map, const std::vector<Hider>& hiders) {
+    HandleInput(map);
+
+    if (isSprinting) {
+        sprintValue -= SPRINT_DEPLETE_RATE * deltaTime;
+        if (sprintValue < 0) sprintValue = 0;
+    } else {
+        sprintValue += SPRINT_REGEN_RATE * deltaTime;
+        if (sprintValue > SPRINT_MAX) sprintValue = SPRINT_MAX;
+    }
+    UpdateVision();
+
+    // Alert symbol logic
+    showAlert = false;
+    Vector2 backDir = Vector2Rotate({-1, 0}, rotation * DEG2RAD); // Opposite to forward
+    for (const auto& hider : hiders) {
+        if (!hider.isTagged) {
+            Vector2 toHider = Vector2Subtract(hider.position, position);
+            float distToHider = Vector2Length(toHider);
+            if (distToHider < ALERT_BEHIND_DISTANCE && distToHider > PLAYER_RADIUS + HIDER_RADIUS) { // Not too close (colliding)
+                if (!IsInVisionCone(hider.position, PLAYER_VISION_CONE_ANGLE, PLAYER_VISION_RADIUS)) { // Not in front vision
+                    // Check if hider is roughly behind
+                    float angleToHider = Vector2Angle(backDir, Vector2Normalize(toHider)) * RAD2DEG;
+                    if (fabsf(angleToHider) < ALERT_BEHIND_ANGLE_RANGE / 2.0f) {
+                        showAlert = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void Player::UpdateVision() {
+    visionConePoints.clear();
+    visionConePoints.push_back(position); // Apex of the cone
+
+    float startAngle = rotation - PLAYER_VISION_CONE_ANGLE / 2.0f;
+    float endAngle = rotation + PLAYER_VISION_CONE_ANGLE / 2.0f;
+
+    // Add points along the arc of the vision cone for drawing
+    int segments = 20; // Number of segments to approximate the arc
+    for (int i = 0; i <= segments; ++i) {
+        float currentAngle = startAngle + (PLAYER_VISION_CONE_ANGLE / segments) * i;
+        Vector2 pointOnRadius = {
+            position.x + PLAYER_VISION_RADIUS * cosf(currentAngle * DEG2RAD),
+            position.y + PLAYER_VISION_RADIUS * sinf(currentAngle * DEG2RAD)
+        };
+        visionConePoints.push_back(pointOnRadius);
+    }
 }
 
 
-void Player_UpdateDraw(void) {
-		Vector2 motion = {0, 0};
-		if (IsKeyDown(KEY_A))
-		{
-			motion.x += -1;
-		}
-		if (IsKeyDown(KEY_D))
-		{
-			motion.x += 1;
-		}
-		if (IsKeyDown(KEY_W))
-		{
-			motion.y += -1;
-		}
-		if (IsKeyDown(KEY_S))
-		{
-			motion.y += 1;
-		}
-		// Decide if running or idle
-		bool isMoving = (Vector2Length(motion) > 0);
+void Player::Draw() {
+    // Draw vision cone first (underneath player)
+    if (visionConePoints.size() >= 3) {
+        DrawTriangleFan(visionConePoints.data(), visionConePoints.size(), VISION_CONE_COLOR);
+    }
+    
+    // Draw Player
+    DrawTexturePro(texture,
+                   {0, 0, (float)texture.width, (float)texture.height}, // source rec
+                   {position.x, position.y, PLAYER_RADIUS * 2, PLAYER_RADIUS * 2}, // dest rec
+                   {PLAYER_RADIUS, PLAYER_RADIUS}, // origin
+                   rotation, WHITE);
 
-		// Normalize motion vector for consistent speed
-		if (isMoving) {
-			motion = Vector2Normalize(motion);
-			Vector2 movementThisFrame = Vector2Scale(motion, GetFrameTime() * charaSpeed);
-			charaPos = Vector2Add(charaPos, movementThisFrame);
-		}
-
-		// Update current animation texture depending on direction and moving state
-		if (motion.x < 0) {
-			currentAnim = isMoving ? charaLrun : charaL;
-		} else if (motion.x > 0) {
-			currentAnim = isMoving ? charaRrun : charaR;
-		} else if (motion.y < 0) {
-			currentAnim = isMoving ? charaUrun : charaU;
-		} else if (motion.y > 0) {
-			currentAnim = isMoving ? charaDrun : charaD;
-		} else {
-			// No input, stay with currentAnim (or default to down idle)
-			if (!isMoving) currentAnim = charaD;
-		}
-
-		// Animate frames if moving, else reset to first frame
-		if (isMoving) {
-			frameTime += GetFrameTime();
-			if (frameTime >= frameDuration) {
-				frameTime = 0.0f;
-				currentFrame++;
-				if (currentFrame >= frameCount) currentFrame = 0;
-			}
-		} else {
-			currentFrame = 0;
-		}
-
-		// Draw current frame from currentAnim into charaBuffer
-		int frameWidth = currentAnim.width / frameCount;
-		int frameHeight = currentAnim.height;
-
-		Rectangle sourceRec = { currentFrame * frameWidth, 0, frameWidth, frameHeight };
-		BeginTextureMode(charaBuffer);
-			ClearBackground(BLANK);
-			DrawTextureRec(currentAnim, sourceRec, (Vector2){0,0}, WHITE);
-		EndTextureMode();
-
-		BeginDrawing();
-		ClearBackground(BLACK);
-		DrawText("Automa-tag: Ryan's Revenge", 100, 100, 20,WHITE);
-
-		Vector2 origin = { 0, 0 };
-		Rectangle source = { 0, 0, (float)charaBuffer.texture.width, -(float)charaBuffer.texture.height };
-		Rectangle dest = {charaPos.x, charaPos.y, source.width * charaScale, -source.height * charaScale};
-		DrawTexturePro(charaBuffer.texture, source, dest, (Vector2){0, 0}, 0.0f, WHITE);
-	
-		DrawFPS(10, 10);
-		EndDrawing();
+    // Draw Alert Symbol if active
+    if (showAlert) {
+        // Position alert icon slightly above the player
+        Vector2 alertPos = { position.x - alertTexture.width / 2.0f, position.y - PLAYER_RADIUS - alertTexture.height - 5.0f };
+        DrawTexture(alertTexture, (int)alertPos.x, (int)alertPos.y, WHITE);
+    }
 }
 
-void Player_Unload(void) {
-	UnloadTexture(charaD);
-	UnloadTexture(charaU);
-	UnloadTexture(charaL);
-	UnloadTexture(charaR);
-	UnloadTexture(charaDrun);
-	UnloadTexture(charaUrun);
-	UnloadTexture(charaLrun);
-	UnloadTexture(charaRrun);
-	UnloadRenderTexture(charaBuffer);
+
+bool Player::IsInVisionCone(Vector2 targetPos, float coneAngle, float visionRadius) const {
+    Vector2 toTarget = Vector2Subtract(targetPos, position);
+    float distanceToTarget = Vector2Length(toTarget);
+
+    if (distanceToTarget > visionRadius || distanceToTarget < 0.1f) { // Target too far or is self
+        return false;
+    }
+
+    Vector2 forward = GetForwardVector();
+    if (Vector2LengthSqr(forward) == 0) return false; // Should not happen if rotation is well-defined
+
+    Vector2 normalizedToTarget = Vector2Normalize(toTarget);
+    
+    float dotProduct = Vector2DotProduct(forward, normalizedToTarget);
+    float angleToTargetRad = acosf(dotProduct); // Angle in radians
+    float angleToTargetDeg = angleToTargetRad * RAD2DEG;
+
+    return angleToTargetDeg <= coneAngle / 2.0f;
+}
+
+// src/player.cpp
+
+bool Player::CanTag(const Hider& hider) const {
+    if (hider.isTagged) return false;
+
+    float distanceToHider = Vector2Distance(position, hider.position);
+
+    // Check if the hider's center is within the player's TAG_RANGE
+    if (distanceToHider <= TAG_RANGE) {
+        // Then check if the hider is within the player's vision cone
+        return IsInVisionCone(hider.position, PLAYER_VISION_CONE_ANGLE, PLAYER_VISION_RADIUS);
+    }
+    return false;
 }

@@ -1,58 +1,31 @@
 #include "raylib.h"
-#include "raymath.h"
-#include "resource_dir.h"
-#include "player.h"
+#include "resource_dir.h" // From template
+#include "constants.h"
+#include "game_manager.h"
+#include <iostream> // For debugging
 
-int main ()
-{
-	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
-	SetTargetFPS(60);
-	InitWindow(1280, 720, "Automa-tag: Ryan's Revenge");
-	SearchAndSetResourceDir("resources");
+int main() {
+    SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI | FLAG_MSAA_4X_HINT);
+    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, GAME_TITLE);
+    SetTargetFPS(60);
 
-	int currScreen = 0;
-	bool playerInit = false;
-	Rectangle button = { 350, 280, 100, 40 };
-
-	while (!WindowShouldClose())
-    {
-        if (currScreen == 0)
-        {
-            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-            {
-                Vector2 mousePos = GetMousePosition();
-                if (CheckCollisionPointRec(mousePos, button))
-                {
-                    currScreen  = 1;
-                    if (!playerInit)
-                    {
-                        Player_Init();
-                        playerInit = true;
-                    }
-                }
-            }
-            BeginDrawing();
-            ClearBackground(RAYWHITE);
-            DrawText("Main Menu", 600, 200, 40, DARKGRAY);
-            DrawRectangleRec(button, LIGHTGRAY);
-            DrawText("Start Game", button.x + 40, button.y + 15, 20, BLACK);
-            DrawFPS(10, 10);
-            EndDrawing();
-        }
-        else if (currScreen  == 1)
-        {
-            Player_UpdateDraw();
-            if (IsKeyPressed(KEY_ESCAPE))
-            {
-                currScreen  = 0;
-                if (playerInit)
-                {
-                    Player_Unload();
-                    playerInit = false;
-                }
-            }
-        }
+    if (!SearchAndSetResourceDir("resources")) {
+        std::cout << "Warning: Could not find or set 'resources' directory. Asset loading might fail." << std::endl;
+        // If you want to be strict, you can exit here or try a default path.
+        // For now, we'll let it continue and see if Raylib can find files relative to executable.
+    } else {
+        std::cout << "Resource directory set to: " << GetWorkingDirectory() << std::endl;
     }
-	CloseWindow();
-	return 0;
+
+
+    GameManager gameManager;
+    gameManager.InitGame(); // Initialize game state, load assets, etc.
+
+    while (!WindowShouldClose() && !gameManager.quitGame) {
+        gameManager.Update();
+        gameManager.Draw();
+    }
+
+    CloseWindow();
+    return 0;
 }
