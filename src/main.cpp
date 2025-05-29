@@ -1,54 +1,32 @@
-/*
-Raylib example file.
-This is an example main file for a simple raylib project.
-Use this as a starting point or replace it with your code.
-
-by Jeffery Myers is marked with CC0 1.0. To view a copy of this license, visit https://creativecommons.org/publicdomain/zero/1.0/
-
-*/
-
 #include "raylib.h"
+#include "resource_dir.h" // From template
+#include "constants.h"
+#include "game_manager.h"
+#include <iostream> // For debugging
 
-#include "resource_dir.h"	// utility header for SearchAndSetResourceDir
+int main() {
+    SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI | FLAG_MSAA_4X_HINT);
+    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, GAME_TITLE);
+    SetTargetFPS(60);
 
-int main ()
-{
-	// Tell the window to use vsync and work on high DPI displays
-	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
+    if (!SearchAndSetResourceDir("resources")) {
+        std::cout << "Warning: Could not find or set 'resources' directory. Asset loading might fail." << std::endl;
+        // If you want to be strict, you can exit here or try a default path.
+        // For now, we'll let it continue and see if Raylib can find files relative to executable.
+    } else {
+        std::cout << "Resource directory set to: " << GetWorkingDirectory() << std::endl;
+    }
 
-	// Create the window and OpenGL context
-	InitWindow(1280, 800, "Hello Raylib");
 
-	// Utility function from resource_dir.h to find the resources folder and set it as the current working directory so we can load from it
-	SearchAndSetResourceDir("resources");
+    GameManager gameManager;
+    gameManager.InitGame(); // Initialize game state, load assets, etc.
 
-	// Load a texture from the resources directory
-	Texture wabbit = LoadTexture("wabbit_alpha.png");
-	
-	// game loop
-	while (!WindowShouldClose())		// run the loop untill the user presses ESCAPE or presses the Close button on the window
-	{
-		// drawing
-		BeginDrawing();
+    while (!WindowShouldClose() && !gameManager.quitGame) {
+        gameManager.Update();
+        gameManager.Draw();
+    }
 
-		// Setup the back buffer for drawing (clear color and depth buffers)
-		ClearBackground(BLACK);
-
-		// draw some text using the default font
-		DrawText("Hello Raylib", 200,200,20,WHITE);
-
-		// draw our texture to the screen
-		DrawTexture(wabbit, 400, 200, WHITE);
-		
-		// end the frame and get ready for the next one  (display frame, poll input, etc...)
-		EndDrawing();
-	}
-
-	// cleanup
-	// unload our texture so it can be cleaned up
-	UnloadTexture(wabbit);
-
-	// destroy the window and cleanup the OpenGL context
-	CloseWindow();
-	return 0;
+    CloseWindow();
+    return 0;
 }
+
