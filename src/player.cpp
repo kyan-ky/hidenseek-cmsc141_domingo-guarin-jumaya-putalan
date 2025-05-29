@@ -185,4 +185,3 @@ bool Player::CanTag(const Hider& hider) const {
     }
     return false;
 }
-
