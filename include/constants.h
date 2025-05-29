@@ -41,13 +41,33 @@ const Color VISION_CONE_COLOR = Fade(YELLOW, 0.3f);
 const Color ALERT_COLOR = RED;
 
 // UI
-const int FONT_SIZE_LARGE = 60;
+/*const int FONT_SIZE_LARGE = 100;
 const int FONT_SIZE_MEDIUM = 40;
-const int FONT_SIZE_SMALL = 20;
+const int FONT_SIZE_SMALL = 20; */ 
+const int MAIN_TITLE_FONT_SIZE = 100;
+const int MENU_BUTTON_FONT_SIZE = 30;
+const int HOW_TO_PLAY_TITLE_FONT_SIZE = 48;
+const int HOW_TO_PLAY_BODY_FONT_SIZE = 22;
+const int HUD_TEXT_FONT_SIZE = 32;
+const int PAUSE_MENU_TITLE_FONT_SIZE = 50;
+const int GAME_OVER_TITLE_FONT_SIZE = 60;
+const int GAME_OVER_REASON_FONT_SIZE = 30;
+
 const Color TEXT_COLOR = WHITE;
-const Color BUTTON_COLOR = DARKBLUE;
-const Color BUTTON_HOVER_COLOR = BLUE;
-const Color OVERLAY_COLOR = Fade(BLACK, 0.7f);
+const Color BUTTON_COLOR = GetColor(0xAF3800FF);
+const Color BUTTON_HOVER_COLOR = GetColor(0xFE7134FF);
+const Color OVERLAY_COLOR = Fade(BLACK, 0.7f); 
+
+const Color MAIN_TITLE_COLOR = GetColor(0xFFCF56FF);
+const Color MENU_BUTTON_TEXT_COLOR = GetColor(0xEDEAD0FF);
+const Color HOW_TO_PLAY_TITLE_COLOR = SKYBLUE;
+const Color HOW_TO_PLAY_BODY_COLOR = LIGHTGRAY;
+const Color HUD_TEXT_COLOR = WHITE;
+const Color PAUSE_MENU_TEXT_COLOR = WHITE;
+const Color GAME_OVER_WIN_COLOR = GREEN;
+const Color GAME_OVER_LOSS_COLOR = RED;
+const Color GAME_OVER_REASON_TEXT_COLOR = WHITE;
+
 
 // Map (Example values, adjust to your map_design.jpg)
 inline const Vector2 HIDING_SPOT_1 = {200, 200};
