@@ -57,7 +57,7 @@ bool UIManager::DrawButton(Rectangle bounds, const char* text, int fontSize, Col
     return clicked;
 }
 
-void UIManager::DrawMainMenu(GameScreen& currentScreen) {
+void UIManager::DrawMainMenu(GameScreen& currentScreen, bool& restartGame, bool& quitGame) {
     if (titleBg.id > 0) DrawTexture(titleBg, 0, 0, WHITE);
     else ClearBackground(DARKGRAY);
 
@@ -71,6 +71,7 @@ void UIManager::DrawMainMenu(GameScreen& currentScreen) {
     Rectangle playButton = {SCREEN_WIDTH / 2.0f - 150, SCREEN_HEIGHT * 0.5f, 300, 60};
     if (DrawButton(playButton, "Start Game", MENU_BUTTON_FONT_SIZE, 
                 BUTTON_COLOR, BUTTON_HOVER_COLOR, MENU_BUTTON_TEXT_COLOR)) {
+        restartGame = true;
         currentScreen = GameScreen::IN_GAME;
     }
 
@@ -83,6 +84,7 @@ void UIManager::DrawMainMenu(GameScreen& currentScreen) {
     Rectangle quitButton = {SCREEN_WIDTH / 2.0f - 150, SCREEN_HEIGHT * 0.5f + 160, 300, 60};
     if (DrawButton(quitButton, "Quit", MENU_BUTTON_FONT_SIZE, 
                 BUTTON_COLOR, BUTTON_HOVER_COLOR, MENU_BUTTON_TEXT_COLOR)) {
+        quitGame = true;
         // This should be handled by GameManager to set quitGame flag.
         // Example: Set a flag that GameManager checks, or call a GameManager method.
         // For instance, if GameManager had a public static bool& GetQuitFlag();
