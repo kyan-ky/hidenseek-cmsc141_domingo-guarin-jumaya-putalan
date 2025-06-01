@@ -17,6 +17,7 @@ public:
     std::vector<Hider> hiders;
     Map gameMap;
     UIManager uiManager;
+    Camera2D camera; // Camera that follows the player
 
     float gameTimer; // Used for both hiding and seeking phases
     float hidingPhaseElapsed;
@@ -47,7 +48,6 @@ private:
     void DrawPauseMenu();
     void DrawGameOver();
 
-    //void CheckWinLossConditions();
     void CheckWinLossConditions(bool playerGotTagged);
     void ResetGameValues();
     void StartHidingPhase();
