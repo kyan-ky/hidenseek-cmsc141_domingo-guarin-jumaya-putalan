@@ -236,7 +236,7 @@ void GameManager::Draw() {
 
     switch (currentScreen) {
         case GameScreen::MAIN_MENU:
-            uiManager.DrawMainMenu(currentScreen);
+            uiManager.DrawMainMenu(currentScreen, this->quitGame);
             // The commented-out logic for quitButtonBounds was here.
             // Its removal must have led to a syntax error with braces.
             // The 'break;' for this case is essential.

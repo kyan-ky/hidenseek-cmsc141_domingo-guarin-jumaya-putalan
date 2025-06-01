@@ -57,9 +57,12 @@ bool UIManager::DrawButton(Rectangle bounds, const char* text, int fontSize, Col
     return clicked;
 }
 
-void UIManager::DrawMainMenu(GameScreen& currentScreen) {
+/* void UIManager::DrawMainMenu(GameScreen& currentScreen) {
     if (titleBg.id > 0) DrawTexture(titleBg, 0, 0, WHITE);
     else ClearBackground(DARKGRAY);
+
+    const char* titleLine1 = "State of Fear:";
+    const cahr* titleLine2 = "Ryan's Revenge";
 
     const char* title = GAME_TITLE;
     // Use titleTextFont, MAIN_TITLE_COLOR, MAIN_TITLE_FONT_SIZE
@@ -90,7 +93,69 @@ void UIManager::DrawMainMenu(GameScreen& currentScreen) {
         // Or more cleanly, DrawButton could return an enum, or the click could be checked in GameManager::UpdateMainMenu()
     }
 
-}
+} */
+
+
+void UIManager::DrawMainMenu(GameScreen& currentScreen, bool& quitGameFlag) {
+    if (titleBg.id > 0) DrawTexture(titleBg, 0, 0, WHITE);
+    else ClearBackground(DARKGRAY); // Or your preferred fallback background color
+
+    // ---- TITLE DRAWING ----
+    // Define the two lines for your title
+    const char* titleLine1 = "State of Fear:";
+    const char* titleLine2 = "Ryan's Revenge";
+
+    // Use the font and color you've set up for the title
+    // (Assuming titleTextFont, MAIN_TITLE_FONT_SIZE, MAIN_TITLE_COLOR from constants.h)
+    Font currentTitleFont = (titleTextFont.texture.id != 0) ? titleTextFont : GetFontDefault();
+    float titleFontSize = (float)MAIN_TITLE_FONT_SIZE; 
+    Color titleColor = MAIN_TITLE_COLOR;
+    
+    // Adjust this for the vertical space between the two lines of the title
+    float lineSpacing = titleFontSize * 0.15f; // e.g., 15% of the font height
+
+    // --- Draw Title Line 1 ---
+    Vector2 titleLine1Size = MeasureTextEx(currentTitleFont, titleLine1, titleFontSize, 1); // Get width and height
+    Vector2 titleLine1Pos = {
+        (SCREEN_WIDTH - titleLine1Size.x) / 2,  // Center horizontally
+        SCREEN_HEIGHT * 0.18f                    // Adjust Y position for the first line (e.g., 18% from top)
+    };
+    DrawTextEx(currentTitleFont, titleLine1, titleLine1Pos, titleFontSize, 1, titleColor);
+
+    // --- Draw Title Line 2 ---
+    Vector2 titleLine2Size = MeasureTextEx(currentTitleFont, titleLine2, titleFontSize, 1); // Get width and height
+    Vector2 titleLine2Pos = {
+        (SCREEN_WIDTH - titleLine2Size.x) / 2,   // Center horizontally
+        titleLine1Pos.y + titleLine1Size.y + lineSpacing // Position below line 1
+    };
+    DrawTextEx(currentTitleFont, titleLine2, titleLine2Pos, titleFontSize, 1, titleColor);
+    // ---- END OF TITLE DRAWING ----
+
+
+    // --- BUTTONS ---
+    // Adjust the starting Y position of the buttons if needed, based on the new title height
+    float buttonsStartY = titleLine2Pos.y + titleLine2Size.y + 70; // e.g., 70 pixels below the second title line
+
+    Rectangle playButton = {SCREEN_WIDTH / 2.0f - 150, buttonsStartY, 300, 60};
+    if (DrawButton(playButton, "Start Game", MENU_BUTTON_FONT_SIZE, 
+                   BUTTON_COLOR, BUTTON_HOVER_COLOR, MENU_BUTTON_TEXT_COLOR)) {
+        currentScreen = GameScreen::IN_GAME;
+    }
+
+    Rectangle howToPlayButton = {SCREEN_WIDTH / 2.0f - 150, buttonsStartY + 70, 300, 60}; // 70px spacing
+    if (DrawButton(howToPlayButton, "How to Play", MENU_BUTTON_FONT_SIZE, 
+                   BUTTON_COLOR, BUTTON_HOVER_COLOR, MENU_BUTTON_TEXT_COLOR)) {
+        currentScreen = GameScreen::HOW_TO_PLAY;
+    }
+
+    Rectangle quitButton = {SCREEN_WIDTH / 2.0f - 150, buttonsStartY + 140, 300, 60}; // 70px spacing
+    if (DrawButton(quitButton, "Quit", MENU_BUTTON_FONT_SIZE, 
+                   BUTTON_COLOR, BUTTON_HOVER_COLOR, MENU_BUTTON_TEXT_COLOR)) {
+        // Quit logic (e.g., set a flag for GameManager to handle)
+        // For example, if you have a quitGame flag in GameManager:
+        quitGameFlag = true; // This would need to be accessible or handled by GameManager
+    }
+} // Closing brace for DrawMainMenu
 
 void UIManager::DrawHowToPlay(GameScreen& currentScreen) {
     if (howToPlayBg.id > 0) DrawTexture(howToPlayBg, 0, 0, WHITE);

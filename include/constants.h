@@ -7,7 +7,7 @@ const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
 
 // Game Title
-inline const char* GAME_TITLE = "Automa-tag: Ryan's Revenge";
+inline const char* GAME_TITLE = "State of Fear: Ryan's Revenge";
 
 // Player Constants
 const float PLAYER_SPEED = 200.0f;

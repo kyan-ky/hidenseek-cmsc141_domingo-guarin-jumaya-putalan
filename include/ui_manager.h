@@ -17,7 +17,7 @@ public:
     void LoadAssets();
     void UnloadAssets();
 
-    void DrawMainMenu(GameScreen& currentScreen);
+    void DrawMainMenu(GameScreen& currentScreen, bool& quitGameFlag);
     void DrawHowToPlay(GameScreen& currentScreen);
     void DrawInGameHUD(float timer, int hidersLeft, float sprintValue);
     void DrawPauseMenu(GameScreen& currentScreen, bool& quitGame, bool& restartGame);
