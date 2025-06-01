@@ -4,29 +4,28 @@
 #include <cstdlib>   // For srand, rand
 #include <ctime>     // For time for srand
 #include <algorithm> // For std::all_of
-#include <cstdio>
+#include <cstdio>    // For snprintf
 
 GameManager::GameManager() : currentScreen(GameScreen::MAIN_MENU), currentPhase(GamePhase::HIDING),
                              gameTimer(0.0f), hidersRemaining(0), playerWon(false),
                              quitGame(false), restartGameFlag(false), lastGameTime(0.0f), hidingPhaseElapsed(0.0f) {
-    srand((unsigned int)time(NULL)); // Seed random number generator
-    uiManager.LoadAssets(); // Load UI assets once
+    srand((unsigned int)time(NULL));
+    uiManager.LoadAssets();
     gameMap.Load();
 }
 
 GameManager::~GameManager() {
     uiManager.UnloadAssets();
     gameMap.Unload();
-    // Player and Hider textures are simple, handled by their destructors if they dynamically allocate.
-    // If textures are loaded in Player/Hider Init and not globally, unload them here or in their destructors.
-    // For simplicity, current Player/Hider use basic shapes or load textures in constructor/Init.
 }
 
 void GameManager::ResetGameValues() {
-    player.Init({SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f}); // Seeker starts in the middle
+    player.Init({SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f});
+    player.rotation = 0.0f;
+    player.showAlert = false;
 
-    hiders.assign(NUM_HIDERS, Hider()); // Create/Reset hiders
-    std::vector<Vector2> startingPositions; // Ensure hiders don't spawn on top of each other
+    hiders.assign(NUM_HIDERS, Hider());
+    std::vector<Vector2> startingPositions;
     for (int i = 0; i < NUM_HIDERS; ++i) {
         Vector2 pos;
         bool positionOk;
@@ -34,12 +33,10 @@ void GameManager::ResetGameValues() {
         do {
             positionOk = true;
             pos = {(float)(rand() % (SCREEN_WIDTH - 100) + 50), (float)(rand() % (SCREEN_HEIGHT - 100) + 50)};
-            // Check against player start
             if (Vector2DistanceSqr(pos, player.position) < (PLAYER_RADIUS + HIDER_RADIUS + 50) * (PLAYER_RADIUS + HIDER_RADIUS + 50)) {
                 positionOk = false;
                 continue;
             }
-            // Check against other hiders already placed
             for(size_t j=0; j < startingPositions.size(); ++j) {
                 if (Vector2DistanceSqr(pos, startingPositions[j]) < (HIDER_RADIUS * 4) * (HIDER_RADIUS * 4) ) {
                     positionOk = false;
@@ -49,322 +46,263 @@ void GameManager::ResetGameValues() {
             attempts++;
         } while(!positionOk && attempts < 50);
         startingPositions.push_back(pos);
-        hiders[i].Init(pos, gameMap);
+        hiders[i].Init(pos, gameMap); // Init should set FSM states and isTagged
+        // Explicitly ensure these are reset if Init doesn't cover them fully for a *new game* scenario
+        hiders[i].isTagged = false; 
+        hiders[i].hidingState = HiderHidingFSMState::SCOUTING; 
+        hiders[i].seekingState = HiderSeekingFSMState::IDLING;
     }
 
     hidersRemaining = NUM_HIDERS;
     playerWon = false;
-    StartHidingPhase(); // Sets timer and phase
-    restartGameFlag = false;
+    StartHidingPhase();         // Sets gameTimer, currentPhase, and hider FSM states
+    hidingPhaseElapsed = 0.0f;  // << CRITICAL: Reset this for the "Close Your Eyes" screen
+    lastGameTime = 0.0f;
+    // restartGameFlag is reset after use in Update()
 }
 
-
 void GameManager::InitGame() {
+    // TraceLog(LOG_INFO, "GAME: InitGame() Called."); // DEBUG
     ResetGameValues();
-    // If currentScreen is IN_GAME from a "Play Again" button, it's already set.
-    // If coming from MAIN_MENU first time, this InitGame is usually called before loop.
-    // currentScreen = GameScreen::IN_GAME; // Ensure game starts in IN_GAME if called fresh
 }
 
 void GameManager::StartHidingPhase() {
     currentPhase = GamePhase::HIDING;
-    gameTimer = HIDING_PHASE_DURATION;
-    hidingPhaseElapsed = 0.0f;
+    gameTimer = HIDING_PHASE_DURATION; // This is the total duration for hiding AFTER "close eyes"
+    hidingPhaseElapsed = 0.0f;         // Reset for the "close eyes" part specifically
+    // TraceLog(LOG_INFO, "GAME: StartHidingPhase - Timer: %.2f, Elapsed: %.2f", gameTimer, hidingPhaseElapsed); // DEBUG
     for (auto& hider : hiders) {
-        hider.hidingState = HiderHidingFSMState::SCOUTING;
+        if (!hider.isTagged) { // Should always be true at the start of a new game
+            hider.hidingState = HiderHidingFSMState::SCOUTING;
+        }
     }
 }
 
 void GameManager::StartSeekingPhase() {
     currentPhase = GamePhase::SEEKING;
-    gameTimer = SEEKING_PHASE_DURATION;
-    // Hiders switch to their seeking phase FSM behaviors
+    gameTimer = SEEKING_PHASE_DURATION; // Timer for the actual seeking
+    // TraceLog(LOG_INFO, "GAME: StartSeekingPhase - Timer: %.2f", gameTimer); // DEBUG
     for (auto& hider : hiders) {
-        hider.seekingState = HiderSeekingFSMState::IDLING;
+        if (!hider.isTagged) {
+            hider.seekingState = HiderSeekingFSMState::IDLING;
+        }
     }
 }
 
 void GameManager::Update() {
-    float deltaTime = GetFrameTime();
+    //float deltaTime = GetFrameTime();
+    GameScreen screenAtFrameStart = this->currentScreen; // Capture screen state BEFORE UI might change it in Draw()
 
-    if (restartGameFlag) {
-        InitGame(); // Fully reset and re-initialize
-        currentScreen = GameScreen::IN_GAME; // Ensure we go to game screen
-        return; // Skip rest of update for this frame
-    }
-    
-    GameScreen previousScreen = currentScreen;
-
-    switch (currentScreen) {
+    // The Update... methods below are for ongoing logic for a screen,
+    // NOT for handling button clicks that change screens. Those clicks happen
+    // in UIManager::Draw... methods, which are called in GameManager::Draw().
+    // The screen change is then detected in the *next* frame of this Update() function.
+    switch (this->currentScreen) {
         case GameScreen::MAIN_MENU:
-            UpdateMainMenu();
+            UpdateMainMenu(); // Currently empty
             break;
         case GameScreen::HOW_TO_PLAY:
-            UpdateHowToPlay();
+            UpdateHowToPlay(); // Currently empty
             break;
         case GameScreen::IN_GAME:
-            UpdateInGame();
+            UpdateInGame(); // Contains core game logic
             break;
         case GameScreen::PAUSE_MENU:
-            UpdatePauseMenu();
+            UpdatePauseMenu(); // Currently empty
             break;
         case GameScreen::GAME_OVER:
-            UpdateGameOver();
+            UpdateGameOver(); // Currently empty
+            break;
+        default:
             break;
     }
 
-    // If "Play Again" from GameOver or "Start Over" from Pause was clicked
-    if ((previousScreen == GameScreen::GAME_OVER && currentScreen == GameScreen::IN_GAME) ||
-        (previousScreen == GameScreen::PAUSE_MENU && currentScreen == GameScreen::IN_GAME && restartGameFlag) ) {
+    if (this->currentScreen == GameScreen::IN_GAME && this->restartGameFlag) {
         InitGame();
+        this->restartGameFlag = false; // CRITICAL: Reset the flag after use
+    } 
+    else if (screenAtFrameStart == GameScreen::PAUSE_MENU && this->currentScreen == GameScreen::IN_GAME && !this->restartGameFlag) {
     }
-    // If returning to Main Menu from Pause or Game Over, then clicking "Start Game"
-    if ((previousScreen == GameScreen::PAUSE_MENU || previousScreen == GameScreen::GAME_OVER) &&
-         currentScreen == GameScreen::MAIN_MENU) {
-        // No immediate reset needed here, reset will happen if "Start Game" is clicked from Main Menu
-    }
-     if (previousScreen == GameScreen::MAIN_MENU && currentScreen == GameScreen::IN_GAME) {
-        InitGame(); // Fresh start from main menu
-    }
-
-
 }
 
-void GameManager::UpdateMainMenu() {
-    // UI Manager handles button clicks and changes currentScreen
-    // If quit is selected on main menu (hypothetical button):
-    // Rectangle quitButtonBounds = {SCREEN_WIDTH / 2.0f - 150, SCREEN_HEIGHT * 0.5f + 160, 300, 60};
-    // if (CheckCollisionPointRec(GetMousePosition(), quitButtonBounds) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-    //     quitGame = true;
-    // }
-}
-
-void GameManager::UpdateHowToPlay() {
-    // UI Manager handles button clicks and changes currentScreen
-}
+void GameManager::UpdateMainMenu() { /* Stub */ }
+void GameManager::UpdateHowToPlay() { /* Stub */ }
+void GameManager::UpdatePauseMenu() { /* Stub */ }
+void GameManager::UpdateGameOver() { /* Stub */ }
 
 void GameManager::UpdateInGame() {
     if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_P)) {
         currentScreen = GameScreen::PAUSE_MENU;
+        // TraceLog(LOG_INFO, "GAME: Paused. CurrentScreen: %d", (int)currentScreen); // DEBUG
         return;
     }
 
     float deltaTime = GetFrameTime();
-    gameTimer -= deltaTime;
 
     if (currentPhase == GamePhase::HIDING) {
         hidingPhaseElapsed += deltaTime;
+
+        // Hiders find spots during the entire HIDING_PHASE_DURATION
+        for (auto& hider : hiders) {
+            if (!hider.isTagged) {
+                hider.Update(deltaTime, currentPhase, player, gameMap, hiders);
+            }
+        }
+
+        // The "Close your eyes" visual part uses hidingPhaseElapsed (drawn in DrawInGame)
+        // The actual gameTimer for hiding starts counting down *after* the visual part conceptually,
+        // or rather, it represents the time hiders have *left* to hide.
+        // Let's make the gameTimer decrement during this phase too.
+        gameTimer -= deltaTime;
+
+        if (gameTimer <= 0) { // Hiding time is up (after "close eyes")
+            StartSeekingPhase();
+        }
+        // No win/loss checks during HIDING phase typically
+        return; // Player does not update/move during HIDING phase
+    }
+
+    // --- SEEKING PHASE ---
+    if (currentPhase == GamePhase::SEEKING) {
+        gameTimer -= deltaTime;
+        player.Update(deltaTime, gameMap, hiders); // Player can move and act
+
         hidersRemaining = 0;
         bool playerTaggedByHider = false;
 
         for (auto& hider : hiders) {
             if (!hider.isTagged) {
-                hider.Update(deltaTime, currentPhase, player, gameMap, hiders);
+                hider.Update(deltaTime, currentPhase, player, gameMap, hiders); // Hiders evade/attack
                 hidersRemaining++;
 
-                // Check if player is tagged by this hider (during seeking phase)
-                if (currentPhase == GamePhase::SEEKING &&
-                    hider.seekingState == HiderSeekingFSMState::ATTACKING && // Hider must be in attack mode
+                if (hider.seekingState == HiderSeekingFSMState::ATTACKING &&
                     CheckCollisionCircles(player.position, PLAYER_RADIUS, hider.position, HIDER_RADIUS)) {
                     playerTaggedByHider = true;
                 }
             }
         }
 
-        // Player tagging hiders
-        if (currentPhase == GamePhase::SEEKING && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            player.Update(deltaTime, gameMap, hiders);
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             for (auto& hider : hiders) {
                 if (player.CanTag(hider)) {
                     hider.isTagged = true;
-                    // Potentially play a sound or visual effect
                 }
             }
         }
         
-        // Update hiders remaining after potential tags
-        hidersRemaining = 0;
+        hidersRemaining = 0; // Recalculate after potential tags
         for(const auto& hider : hiders) {
             if (!hider.isTagged) hidersRemaining++;
         }
 
-        // Phase transitions
-        if (currentPhase == GamePhase::HIDING && gameTimer <= 0) {
-            StartSeekingPhase();
-        }
-
         CheckWinLossConditions(playerTaggedByHider);
-        return;
     }
-
-    player.Update(deltaTime, gameMap, hiders);
-
-    hidersRemaining = 0;
-    bool playerTaggedByHider = false;
-
-    for (auto& hider : hiders) {
-        if (!hider.isTagged) {
-            hider.Update(deltaTime, currentPhase, player, gameMap, hiders);
-            hidersRemaining++;
-
-            // Check if player is tagged by this hider (during seeking phase)
-            if (currentPhase == GamePhase::SEEKING &&
-                hider.seekingState == HiderSeekingFSMState::ATTACKING && // Hider must be in attack mode
-                CheckCollisionCircles(player.position, PLAYER_RADIUS, hider.position, HIDER_RADIUS)) {
-                playerTaggedByHider = true;
-            }
-        }
-    }
-
-    // Player tagging hiders
-    if (currentPhase == GamePhase::SEEKING && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-        for (auto& hider : hiders) {
-            if (player.CanTag(hider)) {
-                hider.isTagged = true;
-                // Potentially play a sound or visual effect
-            }
-        }
-    }
-    
-    // Update hiders remaining after potential tags
-    hidersRemaining = 0;
-    for(const auto& hider : hiders) {
-        if (!hider.isTagged) hidersRemaining++;
-    }
-
-
-    // Phase transitions
-    if (currentPhase == GamePhase::HIDING && gameTimer <= 0) {
-        StartSeekingPhase();
-    }
-
-    CheckWinLossConditions(playerTaggedByHider);
 }
 
-
 void GameManager::CheckWinLossConditions(bool playerGotTagged) {
-    if (currentPhase == GamePhase::SEEKING) { // Only check win/loss during seeking phase
+    // Only check during SEEKING, and only if not already Game Over
+    if (currentPhase == GamePhase::SEEKING && currentScreen != GameScreen::GAME_OVER) { 
         if (hidersRemaining == 0) {
             playerWon = true;
             lastGameTime = SEEKING_PHASE_DURATION - gameTimer;
             currentScreen = GameScreen::GAME_OVER;
+            // TraceLog(LOG_INFO, "GAME: Player WON. All hiders tagged."); // DEBUG
         } else if (gameTimer <= 0) {
             playerWon = false;
-            lastGameTime = 0; // Indicates timer ran out
+            lastGameTime = 0; 
             currentScreen = GameScreen::GAME_OVER;
+            // TraceLog(LOG_INFO, "GAME: Player LOST. Timer expired."); // DEBUG
         } else if (playerGotTagged) {
             playerWon = false;
-            lastGameTime = SEEKING_PHASE_DURATION - gameTimer; // Time when player was tagged
+            lastGameTime = SEEKING_PHASE_DURATION - gameTimer;
             currentScreen = GameScreen::GAME_OVER;
+            // TraceLog(LOG_INFO, "GAME: Player LOST. Tagged by hider."); // DEBUG
         }
     }
 }
-
-
-void GameManager::UpdatePauseMenu() {
-    // UI Manager handles button clicks and sets flags (quitGame, restartGame)
-    // and currentScreen.
-    // If restartGame is set by UI, it will be handled in the main Update loop.
-}
-
-void GameManager::UpdateGameOver() {
-    // UI Manager handles button clicks and changes currentScreen.
-    // If "Play Again" leads to IN_GAME, InitGame() will be called.
-}
-
-
-// src/game_manager.cpp
-
-// ... (other functions) ...
 
 void GameManager::Draw() {
     BeginDrawing();
-    ClearBackground(RAYWHITE); // Default clear, specific screens might override
+    ClearBackground(RAYWHITE); 
 
     switch (currentScreen) {
         case GameScreen::MAIN_MENU:
-            uiManager.DrawMainMenu(currentScreen, restartGameFlag, quitGame);
-            // The commented-out logic for quitButtonBounds was here.
-            // Its removal must have led to a syntax error with braces.
-            // The 'break;' for this case is essential.
-            break; // <--- THIS BREAK IS IMPORTANT FOR THE MAIN_MENU CASE
-
+            uiManager.DrawMainMenu(currentScreen, this->quitGame, this->restartGameFlag);
+            break;
         case GameScreen::HOW_TO_PLAY:
             uiManager.DrawHowToPlay(currentScreen);
             break;
-
         case GameScreen::IN_GAME:
             DrawInGame();
             break;
-
         case GameScreen::PAUSE_MENU:
-            DrawInGame(); // Draw game state underneath pause menu
-            uiManager.DrawPauseMenu(currentScreen, quitGame, restartGameFlag);
+            DrawInGame(); // Draw game state underneath
+            uiManager.DrawPauseMenu(currentScreen, this->quitGame, this->restartGameFlag);
             break;
-
         case GameScreen::GAME_OVER:
-            uiManager.DrawGameOverScreen(currentScreen, playerWon, lastGameTime, restartGameFlag);
+            uiManager.DrawGameOverScreen(currentScreen, playerWon, lastGameTime, this->restartGameFlag);
             break;
-
-        // Optional: Add a default case to handle unexpected screen states,
-        // which can also help with the -Wswitch warning.
         default:
-            // Handle unexpected screen state, or leave empty if not needed.
-            // For example, draw some error text or go to main menu.
-            // DrawText("Error: Unknown Game Screen!", 10, 10, 20, RED);
             break;
-    } // <--- THIS IS THE CLOSING BRACE FOR THE switch STATEMENT
-
-    DrawFPS(SCREEN_WIDTH - 90, 10); // Always draw FPS for debugging
+    } 
+    DrawFPS(SCREEN_WIDTH - 90, 10);
     EndDrawing();
-} // <--- THIS IS THE CLOSING BRACE FOR THE Draw() FUNCTION
-
-
-void GameManager::DrawInGame() {
-    gameMap.Draw();
-    player.Draw();
-    if (currentPhase == GamePhase::HIDING) {
-        DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, BLACK);
-
-        // Calculate elapsed time
-        float elapsed = hidingPhaseElapsed;
-        float remaining = HIDING_PHASE_DURATION - elapsed;
-
-        // Message and fade logic
-        const char* msg = nullptr;
-        float alpha = 1.0f;
-        if (elapsed < 5.0f) {
-            msg = "CLOSE YOUR EYES!";
-            alpha = 1.0f - (elapsed / 5.0f); // Fades out over 5 seconds
-        } else {
-            msg = "Hiders are hiding...";
-            alpha = 1.0f - ((elapsed - 5.0f) / 5.0f); // Fades out over next 5 seconds
-        }
-        if (alpha < 0.0f) alpha = 0.0f;
-
-        int fontSize = 56;
-        int textWidth = MeasureText(msg, fontSize);
-        int x = (SCREEN_WIDTH - textWidth) / 2;
-        int y = (SCREEN_HEIGHT - fontSize) / 2;
-
-        // Draw fading text
-        DrawText(msg, x, y, fontSize, Fade(WHITE, alpha));
-
-        // Draw timer below
-        char timerText[16];
-        snprintf(timerText, sizeof(timerText), "%.1f", remaining > 0 ? remaining : 0.0f);
-        int timerFontSize = 36;
-        int timerWidth = MeasureText(timerText, timerFontSize);
-        int timerX = (SCREEN_WIDTH - timerWidth) / 2;
-        int timerY = y + fontSize + 20;
-        DrawText(timerText, timerX, timerY, timerFontSize, WHITE);
-
-        return;
-    }
-    player.Draw();
-    for (auto& hider : hiders) {
-        hider.Draw();
-    }
-    uiManager.DrawInGameHUD(gameTimer, hidersRemaining, player.sprintValue);
 }
 
+void GameManager::DrawInGame() {
+    // --- HIDING PHASE VISUALS ("Close Your Eyes" screen) ---
+    if (currentPhase == GamePhase::HIDING && hidingPhaseElapsed < HIDING_PHASE_DURATION) { // Show during entire hiding phase duration
+        DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, BLACK);
+
+        float visualCountdownDuration = 5.0f; // How long "Close your eyes" shows prominently
+        float hidingMessageDuration = HIDING_PHASE_DURATION - visualCountdownDuration; // How long "Hiders are hiding" shows
+
+        const char* msg = nullptr;
+        float alpha = 1.0f;
+        float displayTimeRemaining = HIDING_PHASE_DURATION - hidingPhaseElapsed;
+
+        if (hidingPhaseElapsed < visualCountdownDuration) {
+            msg = "CLOSE YOUR EYES!";
+            // Optional: Could make alpha fade in/out for this message too
+        } else if (hidingPhaseElapsed < HIDING_PHASE_DURATION) {
+            msg = "Hiders are hiding...";
+            // Optional: Fade this message in/out
+        } else {
+            msg = "GET READY!"; // Brief message before seeking starts
+        }
+        
+        if (msg) { // Only draw if msg is set
+            int fontSize = 56;
+            int textWidth = MeasureText(msg, fontSize);
+            DrawText(msg, (SCREEN_WIDTH - textWidth) / 2, SCREEN_HEIGHT / 2 - fontSize, fontSize, Fade(WHITE, alpha));
+        }
+
+        char timerText[16];
+        snprintf(timerText, sizeof(timerText), "%.1f", displayTimeRemaining > 0 ? displayTimeRemaining : 0.0f);
+        int timerFontSize = 36;
+        int timerWidth = MeasureText(timerText, timerFontSize);
+        DrawText(timerText, (SCREEN_WIDTH - timerWidth) / 2, SCREEN_HEIGHT / 2 + 20, timerFontSize, WHITE);
+
+        return; // Don't draw the game world during this "Close your eyes" visual
+    }
+
+    // --- SEEKING PHASE or if HIDING_PHASE_DURATION is over but phase hasn't switched ---
+    gameMap.Draw();
+    // Player should be drawn on top of map, hiders potentially between map and foreground objects later
+    // For now, simple draw order:
+    for (auto& hider : hiders) { // Draw hiders first so player can be on top
+        if (!hider.isTagged) { // Only draw non-tagged hiders, or draw tagged ones differently
+            hider.Draw();
+        } else {
+            // Optionally draw tagged hiders differently (e.g., faded)
+            // For now, let's just not draw them or draw them faded
+            // hider.DrawFaded(); // You'd need to implement this
+        }
+    }
+    player.Draw(); // Player drawn on top of hiders and map
+    
+    // HUD is only for seeking phase
+    if (currentPhase == GamePhase::SEEKING) {
+        uiManager.DrawInGameHUD(gameTimer, hidersRemaining, player.sprintValue);
+    }
+}
