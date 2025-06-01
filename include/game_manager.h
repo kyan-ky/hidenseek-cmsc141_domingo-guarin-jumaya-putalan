@@ -19,6 +19,7 @@ public:
     UIManager uiManager;
 
     float gameTimer; // Used for both hiding and seeking phases
+    float hidingPhaseElapsed;
     int hidersRemaining;
     bool playerWon;
     float lastGameTime; // To display on game over

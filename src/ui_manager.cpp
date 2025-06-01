@@ -163,6 +163,8 @@ bool UIManager::DrawButton(Rectangle bounds, const char* text, int fontSize, Col
 }
 
 /* void UIManager::DrawMainMenu(GameScreen& currentScreen) {
+=======
+void UIManager::DrawMainMenu(GameScreen& currentScreen, bool& restartGame, bool& quitGame) {
     if (titleBg.id > 0) DrawTexture(titleBg, 0, 0, WHITE);
     else ClearBackground(DARKGRAY);
 
@@ -179,6 +181,7 @@ bool UIManager::DrawButton(Rectangle bounds, const char* text, int fontSize, Col
     Rectangle playButton = {SCREEN_WIDTH / 2.0f - 150, SCREEN_HEIGHT * 0.5f, 300, 60};
     if (DrawButton(playButton, "Start Game", MENU_BUTTON_FONT_SIZE, 
                 BUTTON_COLOR, BUTTON_HOVER_COLOR, MENU_BUTTON_TEXT_COLOR)) {
+        restartGame = true;
         currentScreen = GameScreen::IN_GAME;
     }
 
@@ -191,6 +194,7 @@ bool UIManager::DrawButton(Rectangle bounds, const char* text, int fontSize, Col
     Rectangle quitButton = {SCREEN_WIDTH / 2.0f - 150, SCREEN_HEIGHT * 0.5f + 160, 300, 60};
     if (DrawButton(quitButton, "Quit", MENU_BUTTON_FONT_SIZE, 
                 BUTTON_COLOR, BUTTON_HOVER_COLOR, MENU_BUTTON_TEXT_COLOR)) {
+        quitGame = true;
         // This should be handled by GameManager to set quitGame flag.
         // Example: Set a flag that GameManager checks, or call a GameManager method.
         // For instance, if GameManager had a public static bool& GetQuitFlag();
@@ -350,7 +354,7 @@ void UIManager::DrawInGameHUD(float timer, int hidersLeft, float sprintValue) {
 // ... (other UIManager methods) ...
 
 void UIManager::DrawPauseMenu(GameScreen& currentScreen, bool& quitGame, bool& restartGame) {
-    DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, OVERLAY_COLOR); // Transparent overlay
+    DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, Fade(OVERLAY_COLOR, 0.5f)); // Transparent overlay
 
     const char* pauseText = "PAUSED";
     // Using titleTextFont for the main "PAUSED" message, or bodyTextFont if you prefer it to be less prominent
@@ -383,7 +387,7 @@ void UIManager::DrawPauseMenu(GameScreen& currentScreen, bool& quitGame, bool& r
     }
 }
 
-void UIManager::DrawGameOverScreen(GameScreen& currentScreen, bool playerWon, float finalTime) {
+void UIManager::DrawGameOverScreen(GameScreen& currentScreen, bool playerWon, float finalTime, bool& restartGame) {
     if (gameOverBg.id > 0) DrawTexture(gameOverBg, 0, 0, WHITE);
     else ClearBackground(playerWon ? DARKGREEN : MAROON);
 
@@ -422,6 +426,7 @@ void UIManager::DrawGameOverScreen(GameScreen& currentScreen, bool playerWon, fl
 
     Rectangle playAgainButton = {SCREEN_WIDTH / 2.0f - 150, SCREEN_HEIGHT * 0.6f + 80, 300, 60};
     if (DrawButton(playAgainButton, "Play Again", MENU_BUTTON_FONT_SIZE, BUTTON_COLOR, BUTTON_HOVER_COLOR, MENU_BUTTON_TEXT_COLOR)) {
+        restartGame = true;
         currentScreen = GameScreen::IN_GAME; 
     }
 }
