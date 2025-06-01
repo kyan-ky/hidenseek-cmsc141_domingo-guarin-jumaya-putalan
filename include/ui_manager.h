@@ -21,7 +21,7 @@ public:
     void DrawHowToPlay(GameScreen& currentScreen);
     void DrawInGameHUD(float timer, int hidersLeft, float sprintValue);
     void DrawPauseMenu(GameScreen& currentScreen, bool& quitGame, bool& restartGame);
-    void DrawGameOverScreen(GameScreen& currentScreen, bool playerWon, float finalTime);
+    void DrawGameOverScreen(GameScreen& currentScreen, bool playerWon, float finalTime, bool& restartGame);
 
 private:
     // Helper for drawing buttons
