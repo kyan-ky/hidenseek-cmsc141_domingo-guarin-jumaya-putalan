@@ -158,7 +158,7 @@ void UIManager::DrawInGameHUD(float timer, int hidersLeft, float sprintValue) {
 // ... (other UIManager methods) ...
 
 void UIManager::DrawPauseMenu(GameScreen& currentScreen, bool& quitGame, bool& restartGame) {
-    DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, OVERLAY_COLOR); // Transparent overlay
+    DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, Fade(OVERLAY_COLOR, 0.5f)); // Transparent overlay
 
     const char* pauseText = "PAUSED";
     // Using titleTextFont for the main "PAUSED" message, or bodyTextFont if you prefer it to be less prominent
@@ -191,7 +191,7 @@ void UIManager::DrawPauseMenu(GameScreen& currentScreen, bool& quitGame, bool& r
     }
 }
 
-void UIManager::DrawGameOverScreen(GameScreen& currentScreen, bool playerWon, float finalTime) {
+void UIManager::DrawGameOverScreen(GameScreen& currentScreen, bool playerWon, float finalTime, bool& restartGame) {
     if (gameOverBg.id > 0) DrawTexture(gameOverBg, 0, 0, WHITE);
     else ClearBackground(playerWon ? DARKGREEN : MAROON);
 
@@ -230,6 +230,7 @@ void UIManager::DrawGameOverScreen(GameScreen& currentScreen, bool playerWon, fl
 
     Rectangle playAgainButton = {SCREEN_WIDTH / 2.0f - 150, SCREEN_HEIGHT * 0.6f + 80, 300, 60};
     if (DrawButton(playAgainButton, "Play Again", MENU_BUTTON_FONT_SIZE, BUTTON_COLOR, BUTTON_HOVER_COLOR, MENU_BUTTON_TEXT_COLOR)) {
+        restartGame = true;
         currentScreen = GameScreen::IN_GAME; 
     }
 }
