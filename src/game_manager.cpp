@@ -12,6 +12,13 @@ GameManager::GameManager() : currentScreen(GameScreen::MAIN_MENU), currentPhase(
     srand((unsigned int)time(NULL)); // Seed random number generator
     uiManager.LoadAssets(); // Load UI assets once
     gameMap.Load();
+    
+    // Initialize camera
+    camera = {0};
+    camera.offset = {SCREEN_WIDTH/2.0f, SCREEN_HEIGHT/2.0f}; // Center of screen
+    camera.target = {0, 0}; // Will be updated to follow player
+    camera.rotation = 0.0f;
+    camera.zoom = 2.0f;
 }
 
 GameManager::~GameManager() {
@@ -23,7 +30,7 @@ GameManager::~GameManager() {
 }
 
 void GameManager::ResetGameValues() {
-    player.Init({SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f}); // Seeker starts in the middle
+    player.Init({PLAYER_RADIUS + 50.0f, PLAYER_RADIUS + 50.0f}); // Seeker starts at top left with some padding
 
     hiders.assign(NUM_HIDERS, Hider()); // Create/Reset hiders
     std::vector<Vector2> startingPositions; // Ensure hiders don't spawn on top of each other
@@ -151,6 +158,9 @@ void GameManager::UpdateInGame() {
 
     float deltaTime = GetFrameTime();
     gameTimer -= deltaTime;
+
+    // Update camera to follow player
+    camera.target = player.position;
 
     if (currentPhase == GamePhase::HIDING) {
         hidingPhaseElapsed += deltaTime;
@@ -321,9 +331,8 @@ void GameManager::Draw() {
 
 
 void GameManager::DrawInGame() {
-    gameMap.Draw();
-    player.Draw();
     if (currentPhase == GamePhase::HIDING) {
+        // During hiding phase, only show black screen and text
         DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, BLACK);
 
         // Calculate elapsed time
@@ -361,10 +370,33 @@ void GameManager::DrawInGame() {
 
         return;
     }
-    player.Draw();
+
+    // Draw game elements with camera
+    BeginMode2D(camera);
+    gameMap.Draw();
     for (auto& hider : hiders) {
         hider.Draw();
     }
+    EndMode2D();
+
+    // Draw dark overlay
+    DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, ColorAlpha(BLACK, 0.1f));
+
+    // Draw vision circle
+    Vector2 screenPos = GetWorldToScreen2D(player.position, camera);
+    float radius = PLAYER_VISION_RADIUS * camera.zoom - 100;
+    
+    // Use alpha premultiply blending to make the vision circle visible
+    BeginBlendMode(BLEND_ALPHA_PREMULTIPLY);
+    DrawCircle((int)screenPos.x, (int)screenPos.y, radius, ColorAlpha(BLACK, 0.01f));
+    EndBlendMode();
+
+    // Draw player
+    BeginMode2D(camera);
+    player.Draw();
+    EndMode2D();
+
+    // Draw UI elements in screen space
     uiManager.DrawInGameHUD(gameTimer, hidersRemaining, player.sprintValue);
 }
 
