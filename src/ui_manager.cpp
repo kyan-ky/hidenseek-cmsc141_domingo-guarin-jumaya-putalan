@@ -164,7 +164,7 @@ void UIManager::DrawMainMenu(GameScreen& currentScreen, bool& restartGame, bool&
 } */
 
 
-void UIManager::DrawMainMenu(GameScreen& currentScreen, bool& restartGame, bool& quitGame) {
+void UIManager::DrawMainMenu(GameScreen& currentScreen, bool& quitGameFlag, bool& wantsToStartNewGame) {
     if (titleBg.id > 0) DrawTexture(titleBg, 0, 0, WHITE);
     else ClearBackground(DARKGRAY); // Or your preferred fallback background color
 
@@ -234,7 +234,7 @@ void UIManager::DrawMainMenu(GameScreen& currentScreen, bool& restartGame, bool&
                    BUTTON_COLOR, BUTTON_HOVER_COLOR, MENU_BUTTON_TEXT_COLOR)) {
         // Quit logic (e.g., set a flag for GameManager to handle)
         // For example, if you have a quitGame flag in GameManager:
-        quitGame = true; // This would need to be accessible or handled by GameManager
+        quitGameFlag = true; // This would need to be accessible or handled by GameManager
     }
 } 
 
