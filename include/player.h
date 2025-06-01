@@ -14,6 +14,7 @@ public:
     Texture2D texture;
     Texture2D alertTexture;
     bool showAlert;
+    std::vector<Vector2> visionConePoints;
 
     Player();
     void Init(Vector2 startPos);
@@ -26,6 +27,6 @@ public:
 
 private:
     void UpdateVision();
-    std::vector<Vector2> visionConePoints; // For drawing
+     // For drawing
 };
 

@@ -117,12 +117,24 @@ void Player::UpdateVision() {
     float endAngle = rotation + PLAYER_VISION_CONE_ANGLE / 2.0f;
 
     // Add points along the arc of the vision cone for drawing
-    int segments = 20; // Number of segments to approximate the arc
+    int segments = 32; // Increased number of segments for smoother cone
+    float angleStep = PLAYER_VISION_CONE_ANGLE / segments;
+    
+    // Add points in a way that creates a more natural cone shape
     for (int i = 0; i <= segments; ++i) {
-        float currentAngle = startAngle + (PLAYER_VISION_CONE_ANGLE / segments) * i;
+        float currentAngle = startAngle + angleStep * i;
+        float radius = PLAYER_VISION_RADIUS;
+        
+        // Create a slight curve in the cone by adjusting the radius
+        if (i > 0 && i < segments) {
+            float t = (float)i / segments;
+            float curve = sinf(t * PI) * 0.1f; // Subtle curve effect
+            radius *= (1.0f - curve);
+        }
+        
         Vector2 pointOnRadius = {
-            position.x + PLAYER_VISION_RADIUS * cosf(currentAngle * DEG2RAD),
-            position.y + PLAYER_VISION_RADIUS * sinf(currentAngle * DEG2RAD)
+            position.x + radius * cosf(currentAngle * DEG2RAD),
+            position.y + radius * sinf(currentAngle * DEG2RAD)
         };
         visionConePoints.push_back(pointOnRadius);
     }
@@ -132,7 +144,21 @@ void Player::UpdateVision() {
 void Player::Draw() {
     // Draw vision cone first (underneath player)
     if (visionConePoints.size() >= 3) {
-        DrawTriangleFan(visionConePoints.data(), visionConePoints.size(), VISION_CONE_COLOR);
+        // Draw multiple layers of the cone for a gradient effect
+        for (int i = 0; i < 3; i++) {
+            float alpha = 0.8f - (i * 0.2f); // Decrease opacity for each layer
+            if (alpha < 0) alpha = 0;
+            
+            // Scale the points slightly for each layer
+            std::vector<Vector2> scaledPoints = visionConePoints;
+            Vector2 center = visionConePoints[0]; // Player position
+            for (size_t j = 1; j < scaledPoints.size(); j++) {
+                Vector2 dir = Vector2Subtract(scaledPoints[j], center);
+                scaledPoints[j] = Vector2Add(center, Vector2Scale(dir, 1.0f - (i * 0.1f)));
+            }
+            
+            DrawTriangleFan(scaledPoints.data(), scaledPoints.size(), Fade(WHITE, alpha));
+        }
     }
     
     // Draw Player

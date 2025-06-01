@@ -37,7 +37,7 @@ const float SEEKING_PHASE_DURATION = 120.0f; // 2 minutes for seeker
 const Color PLAYER_COLOR = BLUE;
 const Color HIDER_COLOR = GREEN;
 const Color HIDER_TAGGED_COLOR = LIGHTGRAY;
-const Color VISION_CONE_COLOR = Fade(YELLOW, 0.3f);
+const Color VISION_CONE_COLOR = Fade(WHITE, 0.8f);
 const Color ALERT_COLOR = RED;
 
 // UI

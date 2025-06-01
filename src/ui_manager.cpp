@@ -121,7 +121,50 @@ bool UIManager::DrawButton(Rectangle bounds, const char* text, int fontSize, Col
     return clicked;
 }
 
-void UIManager::DrawMainMenu(GameScreen& currentScreen, bool& quitGameFlag, bool& wantsToStartNewGame) {
+/* void UIManager::DrawMainMenu(GameScreen& currentScreen) {
+=======
+void UIManager::DrawMainMenu(GameScreen& currentScreen, bool& restartGame, bool& quitGame) {
+    if (titleBg.id > 0) DrawTexture(titleBg, 0, 0, WHITE);
+    else ClearBackground(DARKGRAY);
+
+    const char* titleLine1 = "State of Fear:";
+    const cahr* titleLine2 = "Ryan's Revenge";
+
+    const char* title = GAME_TITLE;
+    // Use titleTextFont, MAIN_TITLE_COLOR, MAIN_TITLE_FONT_SIZE
+    float titleWidth = MeasureTextEx(titleTextFont, title, (float)MAIN_TITLE_FONT_SIZE, 1).x; // Get the width
+    DrawTextEx(titleTextFont, title, 
+           {(SCREEN_WIDTH - titleWidth) / 2, SCREEN_HEIGHT * 0.2f}, 
+           (float)MAIN_TITLE_FONT_SIZE, 1, MAIN_TITLE_COLOR); // Use MAIN_TITLE_COLOR 
+                                                            
+    Rectangle playButton = {SCREEN_WIDTH / 2.0f - 150, SCREEN_HEIGHT * 0.5f, 300, 60};
+    if (DrawButton(playButton, "Start Game", MENU_BUTTON_FONT_SIZE, 
+                BUTTON_COLOR, BUTTON_HOVER_COLOR, MENU_BUTTON_TEXT_COLOR)) {
+        restartGame = true;
+        currentScreen = GameScreen::IN_GAME;
+    }
+
+    Rectangle howToPlayButton = {SCREEN_WIDTH / 2.0f - 150, SCREEN_HEIGHT * 0.5f + 80, 300, 60};
+    if (DrawButton(howToPlayButton, "How to Play", MENU_BUTTON_FONT_SIZE, 
+                BUTTON_COLOR, BUTTON_HOVER_COLOR, MENU_BUTTON_TEXT_COLOR)) {
+        currentScreen = GameScreen::HOW_TO_PLAY;
+    }
+
+    Rectangle quitButton = {SCREEN_WIDTH / 2.0f - 150, SCREEN_HEIGHT * 0.5f + 160, 300, 60};
+    if (DrawButton(quitButton, "Quit", MENU_BUTTON_FONT_SIZE, 
+                BUTTON_COLOR, BUTTON_HOVER_COLOR, MENU_BUTTON_TEXT_COLOR)) {
+        quitGame = true;
+        // This should be handled by GameManager to set quitGame flag.
+        // Example: Set a flag that GameManager checks, or call a GameManager method.
+        // For instance, if GameManager had a public static bool& GetQuitFlag();
+        // GameManager::GetQuitFlag() = true; 
+        // Or more cleanly, DrawButton could return an enum, or the click could be checked in GameManager::UpdateMainMenu()
+    }
+
+} */
+
+
+void UIManager::DrawMainMenu(GameScreen& currentScreen, bool& restartGame, bool& quitGame) {
     if (titleBg.id > 0) DrawTexture(titleBg, 0, 0, WHITE);
     else ClearBackground(DARKGRAY); // Or your preferred fallback background color
 
@@ -189,7 +232,9 @@ void UIManager::DrawMainMenu(GameScreen& currentScreen, bool& quitGameFlag, bool
     Rectangle quitButton = {SCREEN_WIDTH / 2.0f - 150, buttonsStartY + 140, 300, 60}; // 70px spacing
     if (DrawButton(quitButton, "Quit", MENU_BUTTON_FONT_SIZE, 
                    BUTTON_COLOR, BUTTON_HOVER_COLOR, MENU_BUTTON_TEXT_COLOR)) {
-        quitGameFlag = true; 
+        // Quit logic (e.g., set a flag for GameManager to handle)
+        // For example, if you have a quitGame flag in GameManager:
+        quitGame = true; // This would need to be accessible or handled by GameManager
     }
 } 
 
