@@ -19,11 +19,15 @@ GameManager::GameManager() : currentScreen(GameScreen::MAIN_MENU), currentPhase(
     camera.target = {0, 0}; // Will be updated to follow player
     camera.rotation = 0.0f;
     camera.zoom = 2.0f;
+
+    // Initialize vision overlay texture
+    visionOverlay = LoadRenderTexture(SCREEN_WIDTH, SCREEN_HEIGHT);
 }
 
 GameManager::~GameManager() {
     uiManager.UnloadAssets();
     gameMap.Unload();
+    UnloadRenderTexture(visionOverlay);
 }
 
 void GameManager::ResetGameValues() {
@@ -124,11 +128,11 @@ void GameManager::Update() {
             break;
     }
 
-    if (this->currentScreen == GameScreen::IN_GAME && this->restartGameFlag) {
+    // Handle game restart from any screen that can trigger it
+    if (this->restartGameFlag) {
         InitGame();
         this->restartGameFlag = false; // CRITICAL: Reset the flag after use
-    } 
-    else if (screenAtFrameStart == GameScreen::PAUSE_MENU && this->currentScreen == GameScreen::IN_GAME && !this->restartGameFlag) {
+        this->currentScreen = GameScreen::IN_GAME; // Ensure we go to game screen
     }
 }
 
@@ -233,7 +237,7 @@ void GameManager::CheckWinLossConditions(bool playerGotTagged) {
 
 void GameManager::Draw() {
     BeginDrawing();
-    ClearBackground(RAYWHITE); 
+    ClearBackground(BLACK); 
 
     switch (currentScreen) {
         case GameScreen::MAIN_MENU:
@@ -295,31 +299,44 @@ void GameManager::DrawInGame() {
 
         return; // Don't draw the game world during this "Close your eyes" visual
     }
+
     // Draw game elements with camera
     BeginMode2D(camera);
     gameMap.Draw();
+    player.Draw();
     for (auto& hider : hiders) {
         hider.Draw();
     }
     EndMode2D();
 
-    // Draw dark overlay
-    DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, ColorAlpha(BLACK, 0.1f));
-
-    // Draw vision circle
-    Vector2 screenPos = GetWorldToScreen2D(player.position, camera);
-    float radius = PLAYER_VISION_RADIUS * camera.zoom - 100;
-    
-    // Use alpha premultiply blending to make the vision circle visible
-    BeginBlendMode(BLEND_ALPHA_PREMULTIPLY);
-    DrawCircle((int)screenPos.x, (int)screenPos.y, radius, ColorAlpha(BLACK, 0.01f));
-    EndBlendMode();
-
-    // Draw player
-    BeginMode2D(camera);
-    player.Draw();
-    EndMode2D();
-
     // Draw UI elements in screen space
     uiManager.DrawInGameHUD(gameTimer, hidersRemaining, player.sprintValue);
+
+    // Draw the black overlay with vision cone
+    Vector2 screenPos = GetWorldToScreen2D(player.position, camera);
+    float radius = PLAYER_VISION_RADIUS * camera.zoom;
+    float coneAngle = 60.0f; // Angle of the vision cone in degrees
+
+    // Create the vision overlay
+    BeginTextureMode(visionOverlay);
+        ClearBackground(BLACK);  // Start with black background
+        
+        // Draw the dark overlay
+        DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, ColorAlpha(BLACK, 0.95f));
+        
+        // Cut out the vision circle using BLEND_SUBTRACT_COLORS
+        BeginBlendMode(BLEND_SUBTRACT_COLORS);
+            DrawCircleV(screenPos, radius - 140, WHITE);  // Use WHITE to cut out the circle
+        EndBlendMode();
+    EndTextureMode();
+
+    // Draw the final overlay
+    BeginBlendMode(BLEND_ALPHA);
+        DrawTextureRec(
+            visionOverlay.texture,
+            (Rectangle){ 0, 0, (float)SCREEN_WIDTH, -(float)SCREEN_HEIGHT },  // Flip Y
+            (Vector2){ 0, 0 },
+            WHITE
+        );
+    EndBlendMode();
 }

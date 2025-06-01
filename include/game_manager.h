@@ -18,6 +18,7 @@ public:
     Map gameMap;
     UIManager uiManager;
     Camera2D camera; // Camera that follows the player
+    RenderTexture2D visionOverlay; // For vision circle effect
 
     float gameTimer; // Used for both hiding and seeking phases
     float hidingPhaseElapsed;

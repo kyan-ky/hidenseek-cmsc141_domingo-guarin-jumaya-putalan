@@ -7,8 +7,8 @@ Map::Map() {
 }
 
 void Map::Load() {
-    if (FileExists("map_design.jpg")) {
-        background = LoadTexture("map_design.jpg");
+    if (FileExists("game_screen_bg.png")) {
+        background = LoadTexture("game_screen_bg.png");
     } else {
         // Create a placeholder background if map_design.jpg is missing
         Image img = GenImageChecked(SCREEN_WIDTH, SCREEN_HEIGHT, 64, 64, DARKGRAY, GRAY);

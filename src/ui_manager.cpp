@@ -398,6 +398,7 @@ void UIManager::DrawPauseMenu(GameScreen& currentScreen, bool& quitGame, bool& r
 
     Rectangle restartButton = {SCREEN_WIDTH / 2.0f - 150, SCREEN_HEIGHT * 0.4f + 80, 300, 60};
     if (DrawButton(restartButton, "Start Over", MENU_BUTTON_FONT_SIZE, BUTTON_COLOR, BUTTON_HOVER_COLOR, MENU_BUTTON_TEXT_COLOR)) {
+        restartGame = true; // Set the restart flag
         currentScreen = GameScreen::IN_GAME; 
     }
 
