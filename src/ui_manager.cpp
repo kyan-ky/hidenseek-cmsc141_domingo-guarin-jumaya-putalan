@@ -37,7 +37,7 @@ void UIManager::UnloadAssets() {
 
 }
 
-bool UIManager::DrawButton(Rectangle bounds, const char* text, int fontSize, Color baseColor, Color hoverColor, Color textColor) {
+/* bool UIManager::DrawButton(Rectangle bounds, const char* text, int fontSize, Color baseColor, Color hoverColor, Color textColor) {
     bool clicked = false;
     Vector2 mousePoint = GetMousePosition();
     Color currentColor = baseColor;
@@ -49,17 +49,127 @@ bool UIManager::DrawButton(Rectangle bounds, const char* text, int fontSize, Col
         }
     }
 
-    DrawRectangleRec(bounds, currentColor);
+    float buttonRoundness = 0.2f;
+    int buttonSegments = 8;
+
+    DrawRectangleRec(bounds, buttonRoundness, buttonSegments, currentColor, lineThickness, lineColor);
+
+    Color highlightColor = ColorBrightness(currentColor, 0.2f); // Make it brighter
+    Color shadowColor = ColorBrightness(currentColor, -0.2f); // Make it darker
+    int bevelThickness = 2; // Pixel thickness
+
+    // Top and Left highlights
+    DrawRectangleLinesEx((Rectangle){bounds.x, bounds.y, bounds.width, bounds.height}, (float)bevelThickness, highlightColor);
     float textWidth = MeasureTextEx(this->bodyTextFont, text, (float)fontSize, 1).x;
     DrawTextEx(this->bodyTextFont, text,
                {bounds.x + (bounds.width - textWidth) / 2, bounds.y + (bounds.height - fontSize) / 2},
                (float)fontSize, 1, textColor);
     return clicked;
+} */ 
+
+// In src/ui_manager.cpp
+
+// In src/ui_manager.cpp
+
+
+// In src/ui_manager.cpp
+
+// In src/ui_manager.cpp
+
+bool UIManager::DrawButton(Rectangle bounds, const char* text, int fontSize, Color baseColor, Color hoverColor, Color textColor) {
+    bool clicked = false;
+    Vector2 mousePoint = GetMousePosition();
+    Color currentButtonFaceColor = baseColor; // The color of the button's top surface
+    Color currentButtonTextColor = textColor; // The color of the text
+
+    // --- Parameters for Appearance ---
+    float roundness = 0.35f;         // 0.0 (sharp) to 0.5 (fully rounded ends if height allows)
+    int segments = 12;              // Smoothness of curves
+    float shadowOffset = 3.0f;      // How far the "3D" shadow extends (for pop-out effect)
+    float pressDepth = 2.0f;        // How much the button face moves "in" when pressed
+
+    Rectangle buttonFaceBounds = bounds; // This will be the rectangle for the top surface
+                                         // It gets modified if the button is pressed.
+
+    // --- Button State Logic (Hover & Press) ---
+    if (CheckCollisionPointRec(mousePoint, bounds)) { // Collision check always on original bounds
+        currentButtonFaceColor = hoverColor;
+        // Optional: Slightly change text color on hover
+        // currentButtonTextColor = ColorBrightness(textColor, 0.2f);
+
+        if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+            currentButtonFaceColor = ColorBrightness(hoverColor, -0.1f); // Face slightly darker when held
+            
+            // Offset the button face to simulate being pressed "into" the shadow
+            buttonFaceBounds.x += pressDepth;
+            buttonFaceBounds.y += pressDepth;
+        }
+        if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mousePoint, bounds)) {
+            // Click happens on release, still within the original bounds
+            clicked = true;
+        }
+    }
+
+    // --- Drawing the Button ---
+
+    // 1. Draw the "3D Shadow/Depth" Layer
+    // This layer is drawn slightly offset from the original bounds.
+    // It does NOT move when the button is "pressed" with the mouse,
+    // creating the illusion that the button face is sinking into it.
+    if (!(CheckCollisionPointRec(mousePoint, bounds) && IsMouseButtonDown(MOUSE_LEFT_BUTTON))) {
+        // Only draw the "pop-out" shadow if the button is NOT currently being pressed.
+        // When pressed, the button face moves to cover this area.
+        Rectangle shadowBounds = {
+            bounds.x + shadowOffset,
+            bounds.y + shadowOffset,
+            bounds.width,
+            bounds.height
+        };
+        DrawRectangleRounded(shadowBounds, roundness, segments, ColorBrightness(baseColor, -0.5f)); // Significantly darker than base
+    }
+
+    // 2. Draw the Main Button Face (using buttonFaceBounds, which is offset if pressed)
+    DrawRectangleRounded(buttonFaceBounds, roundness, segments, currentButtonFaceColor);
+
+    // --- Text Drawing ---
+    Font currentButtonFont = (this->bodyTextFont.texture.id != 0) ? this->bodyTextFont : GetFontDefault();
+    float textWidth = MeasureTextEx(currentButtonFont, text, (float)fontSize, 1).x;
+    
+    // Text position is relative to buttonFaceBounds (which includes press offset)
+    Vector2 textPosition = {
+        buttonFaceBounds.x + (buttonFaceBounds.width - textWidth) / 2,
+        buttonFaceBounds.y + (buttonFaceBounds.height - fontSize) / 2
+    };
+
+    // Text Enhancement: Simple 1px Outline (good for pixel fonts)
+    Color textOutlineColor = Fade(BLACK, 0.5f); // Semi-transparent black for a softer outline
+    int textOutlineThickness = 1; // For pixel fonts, 1 is usually good
+
+    // Draw outline by drawing text multiple times, offset
+    DrawTextEx(currentButtonFont, text, (Vector2){textPosition.x - textOutlineThickness, textPosition.y}, (float)fontSize, 1, textOutlineColor);
+    DrawTextEx(currentButtonFont, text, (Vector2){textPosition.x + textOutlineThickness, textPosition.y}, (float)fontSize, 1, textOutlineColor);
+    DrawTextEx(currentButtonFont, text, (Vector2){textPosition.x, textPosition.y - textOutlineThickness}, (float)fontSize, 1, textOutlineColor);
+    DrawTextEx(currentButtonFont, text, (Vector2){textPosition.x, textPosition.y + textOutlineThickness}, (float)fontSize, 1, textOutlineColor);
+    // Optional: Diagonals for a more filled outline (might be too much for small text)
+    //DrawTextEx(currentButtonFont, text, (Vector2){textPosition.x - textOutlineThickness, textPosition.y - textOutlineThickness}, (float)fontSize, 1, textOutlineColor);
+    //DrawTextEx(currentButtonFont, text, (Vector2){textPosition.x + textOutlineThickness, textPosition.y - textOutlineThickness}, (float)fontSize, 1, textOutlineColor);
+    //DrawTextEx(currentButtonFont, text, (Vector2){textPosition.x - textOutlineThickness, textPosition.y + textOutlineThickness}, (float)fontSize, 1, textOutlineColor);
+    //DrawTextEx(currentButtonFont, text, (Vector2){textPosition.x + textOutlineThickness, textPosition.y + textOutlineThickness}, (float)fontSize, 1, textOutlineColor);
+
+    // Draw Main Text on top of the outline
+    DrawTextEx(currentButtonFont, text, textPosition, (float)fontSize, 1, currentButtonTextColor);
+    
+    return clicked;
 }
 
+/* void UIManager::DrawMainMenu(GameScreen& currentScreen) {
+=======
 void UIManager::DrawMainMenu(GameScreen& currentScreen, bool& restartGame, bool& quitGame) {
     if (titleBg.id > 0) DrawTexture(titleBg, 0, 0, WHITE);
     else ClearBackground(DARKGRAY);
+
+    const char* titleLine1 = "State of Fear:";
+    const cahr* titleLine2 = "Ryan's Revenge";
 
     const char* title = GAME_TITLE;
     // Use titleTextFont, MAIN_TITLE_COLOR, MAIN_TITLE_FONT_SIZE
@@ -92,7 +202,91 @@ void UIManager::DrawMainMenu(GameScreen& currentScreen, bool& restartGame, bool&
         // Or more cleanly, DrawButton could return an enum, or the click could be checked in GameManager::UpdateMainMenu()
     }
 
-}
+} */
+
+
+void UIManager::DrawMainMenu(GameScreen& currentScreen, bool& quitGameFlag) {
+    if (titleBg.id > 0) DrawTexture(titleBg, 0, 0, WHITE);
+    else ClearBackground(DARKGRAY); // Or your preferred fallback background color
+
+    // ---- TITLE DRAWING ----
+    // Define the two lines for your title
+    const char* titleLine1 = "State of Fear:";
+    const char* titleLine2 = "Ryan's Revenge";
+
+    // Use the font and color you've set up for the title
+    // (Assuming titleTextFont, MAIN_TITLE_FONT_SIZE, MAIN_TITLE_COLOR from constants.h)
+    Font currentTitleFont = (titleTextFont.texture.id != 0) ? titleTextFont : GetFontDefault();
+    float titleFontSize = (float)MAIN_TITLE_FONT_SIZE; 
+    Color titleColor = MAIN_TITLE_COLOR;
+    
+    // Adjust this for the vertical space between the two lines of the title
+    float lineSpacing = titleFontSize * 0.15f; // e.g., 15% of the font height
+    float time = GetTime();
+    float bobSpeed = 2.0f;    // How fast it bobs
+    float bobAmount = 4.0f;   // How many pixels up/down
+    float yAnimationOffset = sinf(time * bobSpeed) * bobAmount;
+
+    // --- Draw Title Line 1 ---
+    Vector2 titleLine1Size = MeasureTextEx(currentTitleFont, titleLine1, titleFontSize, 1); // Get width and height
+    Vector2 titleLine1BasePos = {
+        (SCREEN_WIDTH - titleLine1Size.x) / 2,  // Center horizontally
+        SCREEN_HEIGHT * 0.18f                    // Adjust Y position for the first line (e.g., 18% from top)
+    };
+    Vector2 shadowOffset = {3, 3};
+    Color shadowColor = Fade(BLACK, 0.6f);
+    DrawTextEx(currentTitleFont, titleLine1, 
+           {titleLine1BasePos.x + shadowOffset.x, titleLine1BasePos.y + shadowOffset.y + yAnimationOffset}, 
+           titleFontSize, 1, shadowColor);
+    /* Color outlineColor = BLACK;
+    int outlineThickness = 2;
+    DrawTextEx(currentTitleFont, titleLine1, {titleLine1Pos.x - outlineThickness, titleLine1Pos.y}, titleFontSize, 1, outlineColor);
+    DrawTextEx(currentTitleFont, titleLine1, {titleLine1Pos.x + outlineThickness, titleLine1Pos.y}, titleFontSize, 1, outlineColor);
+    DrawTextEx(currentTitleFont, titleLine1, {titleLine1Pos.x, titleLine1Pos.y - outlineThickness}, titleFontSize, 1, outlineColor);
+    DrawTextEx(currentTitleFont, titleLine1, {titleLine1Pos.x, titleLine1Pos.y + outlineThickness}, titleFontSize, 1, outlineColor); */ 
+    DrawTextEx(currentTitleFont, titleLine1, {titleLine1BasePos.x, titleLine1BasePos.y + yAnimationOffset}, titleFontSize, 1, titleColor);
+
+    // --- Draw Title Line 2 ---
+    Vector2 titleLine2Size = MeasureTextEx(currentTitleFont, titleLine2, titleFontSize, 1); // Get width and height
+    Vector2 titleLine2BasePos = {
+        (SCREEN_WIDTH - titleLine2Size.x) / 2,   // Center horizontally
+        titleLine1BasePos.y + titleLine1Size.y + lineSpacing // Position below line 1
+    };
+    DrawTextEx(currentTitleFont, titleLine2, 
+           {titleLine2BasePos.x + shadowOffset.x, titleLine2BasePos.y + shadowOffset.y + yAnimationOffset}, 
+           titleFontSize, 1, shadowColor);
+    /* DrawTextEx(currentTitleFont, titleLine2, {titleLine2Pos.x - outlineThickness, titleLine2Pos.y}, titleFontSize, 1, outlineColor);
+    DrawTextEx(currentTitleFont, titleLine2, {titleLine2Pos.x + outlineThickness, titleLine2Pos.y}, titleFontSize, 1, outlineColor);
+    DrawTextEx(currentTitleFont, titleLine2, {titleLine2Pos.x, titleLine2Pos.y - outlineThickness}, titleFontSize, 1, outlineColor);
+    DrawTextEx(currentTitleFont, titleLine2, {titleLine2Pos.x, titleLine2Pos.y + outlineThickness}, titleFontSize, 1, outlineColor); */
+    DrawTextEx(currentTitleFont, titleLine2, {titleLine2BasePos.x, titleLine2BasePos.y + yAnimationOffset}, titleFontSize, 1, titleColor);
+    // ---- END OF TITLE DRAWING ----
+
+
+    // --- BUTTONS ---
+    // Adjust the starting Y position of the buttons if needed, based on the new title height
+    float buttonsStartY = titleLine2BasePos.y + titleLine2Size.y + 70; // e.g., 70 pixels below the second title line
+
+    Rectangle playButton = {SCREEN_WIDTH / 2.0f - 150, buttonsStartY, 300, 60};
+    if (DrawButton(playButton, "Start Game", MENU_BUTTON_FONT_SIZE, 
+                   BUTTON_COLOR, BUTTON_HOVER_COLOR, MENU_BUTTON_TEXT_COLOR)) {
+        currentScreen = GameScreen::IN_GAME;
+    }
+
+    Rectangle howToPlayButton = {SCREEN_WIDTH / 2.0f - 150, buttonsStartY + 70, 300, 60}; // 70px spacing
+    if (DrawButton(howToPlayButton, "How to Play", MENU_BUTTON_FONT_SIZE, 
+                   BUTTON_COLOR, BUTTON_HOVER_COLOR, MENU_BUTTON_TEXT_COLOR)) {
+        currentScreen = GameScreen::HOW_TO_PLAY;
+    }
+
+    Rectangle quitButton = {SCREEN_WIDTH / 2.0f - 150, buttonsStartY + 140, 300, 60}; // 70px spacing
+    if (DrawButton(quitButton, "Quit", MENU_BUTTON_FONT_SIZE, 
+                   BUTTON_COLOR, BUTTON_HOVER_COLOR, MENU_BUTTON_TEXT_COLOR)) {
+        // Quit logic (e.g., set a flag for GameManager to handle)
+        // For example, if you have a quitGame flag in GameManager:
+        quitGameFlag = true; // This would need to be accessible or handled by GameManager
+    }
+} // Closing brace for DrawMainMenu
 
 void UIManager::DrawHowToPlay(GameScreen& currentScreen) {
     if (howToPlayBg.id > 0) DrawTexture(howToPlayBg, 0, 0, WHITE);

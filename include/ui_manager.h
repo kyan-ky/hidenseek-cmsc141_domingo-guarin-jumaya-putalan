@@ -16,7 +16,6 @@ public:
     UIManager();
     void LoadAssets();
     void UnloadAssets();
-
     void DrawMainMenu(GameScreen& currentScreen, bool& restartGame, bool& quitGame);
     void DrawHowToPlay(GameScreen& currentScreen);
     void DrawInGameHUD(float timer, int hidersLeft, float sprintValue);
