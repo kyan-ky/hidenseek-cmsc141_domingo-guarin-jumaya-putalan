@@ -328,11 +328,11 @@ void GameManager::Draw() {
 
 void GameManager::DrawInGame() {
     // --- HIDING PHASE VISUALS ("Countdown" screen) ---
-    if (currentPhase == GamePhase::HIDING && hidingPhaseElapsed < HIDING_PHASE_DURATION) {
+    if (currentPhase == GamePhase::HIDING && hidingPhaseElapsed < 10.0f) {
         ClearBackground(BLACK); // Start with a black screen
 
         float time = GetTime(); 
-        float displayTimeRemaining = HIDING_PHASE_DURATION - hidingPhaseElapsed;
+        float displayTimeRemaining = 10.0f - hidingPhaseElapsed;
 
         // Define Stages for Messages
         float stage1Duration = 4.0f; 
@@ -352,19 +352,19 @@ void GameManager::DrawInGame() {
             msgFontSize = 80;
             float pulseSpeed = 3.0f;
             msgPulseScale = 1.0f + 0.05f * sinf(time * pulseSpeed); 
-        } else if (hidingPhaseElapsed < (HIDING_PHASE_DURATION - stage3Duration)) {
+        } else if (hidingPhaseElapsed < (10.0f - stage3Duration)) {
             msg = "Hiders are hiding...";
             msgColor = GetColor(0xEDEAD0FF);
             msgFontSize = 60;
-        } else if (hidingPhaseElapsed < HIDING_PHASE_DURATION) {
+        } else if (hidingPhaseElapsed < 10.0f) {
             msg = "GET READY!";
             msgColor = GetColor(0xFFCF56FF);
             msgFontSize = 90;
             float pulseSpeed = 6.0f;
             msgPulseScale = 1.0f + 0.1f * fabsf(sinf(time * pulseSpeed)); 
 
-            if (hidingPhaseElapsed >= (HIDING_PHASE_DURATION - stage3Duration) && 
-                hidingPhaseElapsed < (HIDING_PHASE_DURATION - stage3Duration + 0.1f)) { 
+            if (hidingPhaseElapsed >= (10.0f - stage3Duration) && 
+                hidingPhaseElapsed < (10.0f - stage3Duration + 0.1f)) { 
                 DrawRectangle(0,0,SCREEN_WIDTH, SCREEN_HEIGHT, Fade(WHITE, 0.3f));
             }
         }
@@ -398,54 +398,55 @@ void GameManager::DrawInGame() {
         DrawTextEx(timerDetailFont, timerText, 
                    {(SCREEN_WIDTH - timerTextSize.x) / 2, SCREEN_HEIGHT * 0.6f - timerTextSize.y / 2}, 
                    actualTimerFontSize, 1, timerColor);
-      
-    // Draw game elements with camera
-    BeginMode2D(camera);
-        // Draw base map and walls first
-        gameMap.DrawBaseAndWalls();
-        
-        // Draw hiders before the object texture so they appear behind hiding spots
-        for (auto& hider : hiders) {
-            if (!hider.isTagged) {
-                hider.Draw();
+    } else {
+        // Draw game elements with camera
+        BeginMode2D(camera);
+            // Draw base map and walls first
+            gameMap.DrawBaseAndWalls();
+            
+            // Draw hiders before the object texture so they appear behind hiding spots
+            for (auto& hider : hiders) {
+                if (!hider.isTagged) {
+                    hider.Draw();
+                }
             }
-        }
+            
+            // Draw object texture (hiding spots) on top of hiders, with transparency based on player position
+            gameMap.DrawObjects(player.position);
+            
+            // Draw player last so it's always on top
+            player.Draw();
+        EndMode2D();
         
-        // Draw object texture (hiding spots) on top of hiders, with transparency based on player position
-        gameMap.DrawObjects(player.position);
-        
-        // Draw player last so it's always on top
-        player.Draw();
-    EndMode2D();
+        // Draw the black overlay with vision cone
+        Vector2 screenPos = GetWorldToScreen2D(player.position, camera);
+        float radius = PLAYER_VISION_RADIUS * camera.zoom;
+        float coneAngle = 60.0f; // Angle of the vision cone in degrees
 
-    // Draw the black overlay with vision cone
-    Vector2 screenPos = GetWorldToScreen2D(player.position, camera);
-    float radius = PLAYER_VISION_RADIUS * camera.zoom;
-    float coneAngle = 60.0f; // Angle of the vision cone in degrees
+        // Create the vision overlay
+        BeginTextureMode(visionOverlay);
+            ClearBackground(BLACK);  // Start with black background
+            
+            // Draw the dark overlay
+            DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, ColorAlpha(BLACK, 0.95f));
+            
+            // Cut out the vision circle using BLEND_SUBTRACT_COLORS
+            BeginBlendMode(BLEND_SUBTRACT_COLORS);
+                DrawCircleV(screenPos, radius - 200, WHITE);  // Use WHITE to cut out the circle
+            EndBlendMode();
+        EndTextureMode();
 
-    // Create the vision overlay
-    BeginTextureMode(visionOverlay);
-        ClearBackground(BLACK);  // Start with black background
-        
-        // Draw the dark overlay
-        DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, ColorAlpha(BLACK, 0.95f));
-        
-        // Cut out the vision circle using BLEND_SUBTRACT_COLORS
-        BeginBlendMode(BLEND_SUBTRACT_COLORS);
-            DrawCircleV(screenPos, radius - 200, WHITE);  // Use WHITE to cut out the circle
+        // Draw the final overlay
+        BeginBlendMode(BLEND_ALPHA);
+            DrawTextureRec(
+                visionOverlay.texture,
+                (Rectangle){ 0, 0, (float)SCREEN_WIDTH, -(float)SCREEN_HEIGHT },  // Flip Y
+                (Vector2){ 0, 0 },
+                WHITE
+            );
         EndBlendMode();
-    EndTextureMode();
 
-    // Draw the final overlay
-    BeginBlendMode(BLEND_ALPHA);
-        DrawTextureRec(
-            visionOverlay.texture,
-            (Rectangle){ 0, 0, (float)SCREEN_WIDTH, -(float)SCREEN_HEIGHT },  // Flip Y
-            (Vector2){ 0, 0 },
-            WHITE
-        );
-    EndBlendMode();
-
-    // Draw UI elements in screen space
-    uiManager.DrawInGameHUD(gameTimer, hidersRemaining, player.sprintValue);
+        // Draw UI elements in screen space
+        uiManager.DrawInGameHUD(gameTimer, hidersRemaining, player.sprintValue);
+    }
 }

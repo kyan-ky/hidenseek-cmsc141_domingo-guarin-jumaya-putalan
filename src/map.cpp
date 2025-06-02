@@ -22,16 +22,12 @@ void Map::Load() {
 
     // Load the wall texture
     if (FileExists("wall_bg.png")) {
-        // TODO: Load into the new wallTexture member you add to map.h
         wallTexture = LoadTexture("wall_bg.png");
     }
 
     if (FileExists("Object_hiding.png")) {
         objTexture = LoadTexture("Object_hiding.png");
     }
-    // Clear previous obstacles
-    obstacles.clear();
-
     // Horizontal wall above kitchen
     obstacles.push_back({236, 242, 394, 146});
     obstacles.push_back({551, 169, 80, 74});
@@ -70,6 +66,10 @@ void Map::InitHidingSpots() {
         hidingSpots.push_back(HIDING_SPOT_BUSH_G4);
         TraceLog(LOG_INFO, "MAP: Added BUSH_G4 at (%.1f, %.1f)", HIDING_SPOT_BUSH_G4.x, HIDING_SPOT_BUSH_G4.y);
     }
+    if (IsPositionValid(HIDING_SPOT_BUSH_G5, 0)) {
+        hidingSpots.push_back(HIDING_SPOT_BUSH_G5);
+        TraceLog(LOG_INFO, "MAP: Added BUSH_G5 at (%.1f, %.1f)", HIDING_SPOT_BUSH_G5.x, HIDING_SPOT_BUSH_G5.y);
+    }
     if (IsPositionValid(HIDING_SPOT_BUSH_B1, 0)) {
         hidingSpots.push_back(HIDING_SPOT_BUSH_B1);
         TraceLog(LOG_INFO, "MAP: Added BUSH_B1 at (%.1f, %.1f)", HIDING_SPOT_BUSH_B1.x, HIDING_SPOT_BUSH_B1.y);
@@ -81,6 +81,10 @@ void Map::InitHidingSpots() {
     if (IsPositionValid(HIDING_SPOT_BUSH_B3, 0)) {
         hidingSpots.push_back(HIDING_SPOT_BUSH_B3);
         TraceLog(LOG_INFO, "MAP: Added BUSH_B3 at (%.1f, %.1f)", HIDING_SPOT_BUSH_B3.x, HIDING_SPOT_BUSH_B3.y);
+    }
+    if (IsPositionValid(HIDING_SPOT_BUSH_B4, 0)) {
+        hidingSpots.push_back(HIDING_SPOT_BUSH_B4);
+        TraceLog(LOG_INFO, "MAP: Added BUSH_B4 at (%.1f, %.1f)", HIDING_SPOT_BUSH_B4.x, HIDING_SPOT_BUSH_B4.y);
     }
     if (IsPositionValid(HIDING_SPOT_TABLE_1, 0)) {
         hidingSpots.push_back(HIDING_SPOT_TABLE_1);
@@ -105,6 +109,14 @@ void Map::InitHidingSpots() {
     if (IsPositionValid(HIDING_SPOT_COUCH_2, 0)) {
         hidingSpots.push_back(HIDING_SPOT_COUCH_2);
         TraceLog(LOG_INFO, "MAP: Added COUCH_2 at (%.1f, %.1f)", HIDING_SPOT_COUCH_2.x, HIDING_SPOT_COUCH_2.y);
+    }
+    if (IsPositionValid(HIDING_SPOT_COUCH_3, 0)) {
+        hidingSpots.push_back(HIDING_SPOT_COUCH_3);
+        TraceLog(LOG_INFO, "MAP: Added COUCH_3 at (%.1f, %.1f)", HIDING_SPOT_COUCH_3.x, HIDING_SPOT_COUCH_3.y);
+    }
+    if (IsPositionValid(HIDING_SPOT_PLANT, 0)) {
+        hidingSpots.push_back(HIDING_SPOT_PLANT);
+        TraceLog(LOG_INFO, "MAP: Added PLANT at (%.1f, %.1f)", HIDING_SPOT_PLANT.x, HIDING_SPOT_PLANT.y);
     }
 
     // Warning if not enough hiding spots are defined for the number of hiders
