@@ -21,7 +21,7 @@ const float SPRINT_REGEN_RATE = 15.0f;   // per second
 const float TAG_RANGE = 50.0f; // How close player needs to be within cone to tag
 
 // Hider Constants
-const float HIDER_SPEED = 180.0f;
+const float HIDER_SPEED = 120.0f;
 const float HIDER_RADIUS = 12.0f;
 const float HIDER_VISION_CONE_ANGLE = 90.0f; // degrees
 const float HIDER_VISION_RADIUS = 150.0f;

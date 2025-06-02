@@ -15,6 +15,7 @@ public:
     Texture2D alertTexture;
     bool showAlert;
     std::vector<Vector2> visionConePoints;
+    bool isTagged;
 
     Player();
     void Init(Vector2 startPos);
@@ -24,6 +25,8 @@ public:
     bool CanTag(const class Hider& hider) const;
     Vector2 GetForwardVector() const;
     bool IsInVisionCone(Vector2 targetPos, float coneAngle, float visionRadius) const;
+    bool IsLookingAt(Vector2 targetPos) const;
+    void SetTagged(bool tagged) { isTagged = tagged; }
 
 private:
     void UpdateVision();

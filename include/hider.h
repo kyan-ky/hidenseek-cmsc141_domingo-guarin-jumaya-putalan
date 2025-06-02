@@ -27,6 +27,9 @@ public:
     float rotation; // in degrees
     float speed;
     bool isTagged;
+    float timeSinceLastTag = 0.0f;
+    float timeSinceLastPlayerMovement = 0.0f;
+    Vector2 lastPlayerPosition = {0, 0};
     Texture2D texture;
 
     HiderHidingFSMState hidingState;
@@ -38,6 +41,8 @@ public:
     void Draw();
     bool IsInVision(Vector2 targetPos) const;
     Vector2 GetForwardVector() const;
+    bool CanAttack(const Player& player) const;
+    void AttemptTag(const Map& gameMap, Player& player);
 
 
 private:
