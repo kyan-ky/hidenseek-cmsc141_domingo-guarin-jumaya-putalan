@@ -52,7 +52,7 @@ links({
 filter("system:windows")
 systemversion("latest")
 defines({ "PLATFORM_DESKTOP" })
-files({ "srcsapplication.rc" }) -- Add resource file for Windows
+files({ "../src/sapplication.rc" }) -- Add resource file for Windows
 links({ "opengl32", "gdi32", "winmm" }) -- Raylib dependencies on Windows
 
 filter("system:linux")

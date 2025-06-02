@@ -263,80 +263,158 @@ void GameManager::Draw() {
     EndDrawing();
 }
 
+// In src/game_manager.cpp
+
 void GameManager::DrawInGame() {
-    // --- HIDING PHASE VISUALS ("Close Your Eyes" screen) ---
-    if (currentPhase == GamePhase::HIDING && hidingPhaseElapsed < HIDING_PHASE_DURATION) { // Show during entire hiding phase duration
-        DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, BLACK);
+    // --- HIDING PHASE VISUALS ("Countdown" screen) ---
+    if (currentPhase == GamePhase::HIDING && hidingPhaseElapsed < HIDING_PHASE_DURATION) {
+        ClearBackground(BLACK); // Start with a black screen
 
-        float visualCountdownDuration = 5.0f; // How long "Close your eyes" shows prominently
-        float hidingMessageDuration = HIDING_PHASE_DURATION - visualCountdownDuration; // How long "Hiders are hiding" shows
-
-        const char* msg = nullptr;
-        float alpha = 1.0f;
+        float time = GetTime(); 
         float displayTimeRemaining = HIDING_PHASE_DURATION - hidingPhaseElapsed;
 
-        if (hidingPhaseElapsed < visualCountdownDuration) {
+        // Define Stages for Messages
+        float stage1Duration = 4.0f; 
+        float stage3Duration = 2.0f; 
+
+        const char* msg = nullptr;
+        int msgFontSize = 70; 
+        Color msgColor = WHITE;
+        float msgPulseScale = 1.0f;
+
+        Font messageFont = (uiManager.titleTextFont.texture.id != 0) ? uiManager.titleTextFont : GetFontDefault();
+        Font timerDetailFont = (uiManager.bodyTextFont.texture.id != 0) ? uiManager.bodyTextFont : GetFontDefault();
+
+        if (hidingPhaseElapsed < stage1Duration) {
             msg = "CLOSE YOUR EYES!";
-            // Optional: Could make alpha fade in/out for this message too
-        } else if (hidingPhaseElapsed < HIDING_PHASE_DURATION) {
+            msgColor = GetColor(0xAF3800FF);
+            msgFontSize = 80;
+            float pulseSpeed = 3.0f;
+            msgPulseScale = 1.0f + 0.05f * sinf(time * pulseSpeed); 
+        } else if (hidingPhaseElapsed < (HIDING_PHASE_DURATION - stage3Duration)) {
             msg = "Hiders are hiding...";
-            // Optional: Fade this message in/out
-        } else {
-            msg = "GET READY!"; // Brief message before seeking starts
-        }
-        
-        if (msg) { // Only draw if msg is set
-            int fontSize = 56;
-            int textWidth = MeasureText(msg, fontSize);
-            DrawText(msg, (SCREEN_WIDTH - textWidth) / 2, SCREEN_HEIGHT / 2 - fontSize, fontSize, Fade(WHITE, alpha));
+            msgColor = GetColor(0xEDEAD0FF);
+            msgFontSize = 60;
+        } else if (hidingPhaseElapsed < HIDING_PHASE_DURATION) {
+            msg = "GET READY!";
+            msgColor = GetColor(0xFFCF56FF);
+            msgFontSize = 90;
+            float pulseSpeed = 6.0f;
+            msgPulseScale = 1.0f + 0.1f * fabsf(sinf(time * pulseSpeed)); 
+
+            if (hidingPhaseElapsed >= (HIDING_PHASE_DURATION - stage3Duration) && 
+                hidingPhaseElapsed < (HIDING_PHASE_DURATION - stage3Duration + 0.1f)) { 
+                DrawRectangle(0,0,SCREEN_WIDTH, SCREEN_HEIGHT, Fade(WHITE, 0.3f));
+            }
         }
 
+        // Draw the main message
+        if (msg) { 
+            float actualMsgFontSize = msgFontSize * msgPulseScale;
+            Vector2 textSize = MeasureTextEx(messageFont, msg, actualMsgFontSize, 1);
+            DrawTextEx(messageFont, msg, 
+                       {(SCREEN_WIDTH - textSize.x) / 2, SCREEN_HEIGHT * 0.4f - textSize.y / 2}, 
+                       actualMsgFontSize, 1, msgColor);
+        }
+
+        // Draw Timer
         char timerText[16];
         snprintf(timerText, sizeof(timerText), "%.1f", displayTimeRemaining > 0 ? displayTimeRemaining : 0.0f);
-        int timerFontSize = 36;
-        int timerWidth = MeasureText(timerText, timerFontSize);
-        DrawText(timerText, (SCREEN_WIDTH - timerWidth) / 2, SCREEN_HEIGHT / 2 + 20, timerFontSize, WHITE);
+        
+        int timerFontSize = 70;
+        Color timerColor = GetColor(0xEDEAD0FF);
+        float timerPulseScale = 1.0f;
 
-        return; // Don't draw the game world during this "Close your eyes" visual
+        if (displayTimeRemaining <= 3.5f && displayTimeRemaining > 0) { 
+            timerColor = GetColor(0xFFCF56FF);
+            float pulseSpeed = 5.0f;
+            timerPulseScale = 1.0f + 0.08f * fabsf(sinf(time * pulseSpeed * 2.0f)); 
+             if (displayTimeRemaining <= 1.5f) timerColor = GetColor(0xAF3800FF);
+        }
+        
+        float actualTimerFontSize = timerFontSize * timerPulseScale;
+        Vector2 timerTextSize = MeasureTextEx(timerDetailFont, timerText, actualTimerFontSize, 1); 
+        DrawTextEx(timerDetailFont, timerText, 
+                   {(SCREEN_WIDTH - timerTextSize.x) / 2, SCREEN_HEIGHT * 0.6f - timerTextSize.y / 2}, 
+                   actualTimerFontSize, 1, timerColor);
+
+        return; // Don't draw the game world or vision overlay during this countdown
     }
 
-    // Draw game elements with camera
-    BeginMode2D(camera);
-    gameMap.Draw();
-    player.Draw();
-    for (auto& hider : hiders) {
-        hider.Draw();
-    }
+    // --- SEEKING PHASE or if HIDING_PHASE_DURATION is over ---
+
+    // 1. Draw game elements with camera
+    BeginMode2D(camera); // Assuming 'camera' is a member of GameManager or accessible
+        gameMap.Draw();
+        // Draw hiders first so player is on top, or before foreground objects if you implement those
+        for (auto& hider : hiders) {
+            // Consider drawing tagged hiders differently or not at all
+            if (!hider.isTagged) { // Example: only draw non-tagged
+                 hider.Draw();
+            }
+        }
+        player.Draw();
     EndMode2D();
 
-    // Draw UI elements in screen space
-    uiManager.DrawInGameHUD(gameTimer, hidersRemaining, player.sprintValue);
+    // 2. Update and Draw the Vision Overlay (only during seeking phase)
+    if (currentPhase == GamePhase::SEEKING) { // Only apply vision overlay in seeking phase
+        Vector2 screenPos = GetWorldToScreen2D(player.position, camera);
+        float radius = PLAYER_VISION_RADIUS * camera.zoom; 
+        // float coneAngle = PLAYER_VISION_CONE_ANGLE; // Use defined constant
 
-    // Draw the black overlay with vision cone
-    Vector2 screenPos = GetWorldToScreen2D(player.position, camera);
-    float radius = PLAYER_VISION_RADIUS * camera.zoom;
-    float coneAngle = 60.0f; // Angle of the vision cone in degrees
+        // Create the vision overlay
+        BeginTextureMode(visionOverlay); // Assuming 'visionOverlay' is a RenderTexture2D member of GameManager
+            ClearBackground(ColorAlpha(BLACK, 0.0f)); // Start with fully transparent for the overlay RT
+            
+            // Draw the dark overlay that covers everything
+            DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, ColorAlpha(BLACK, 0.85f)); // Adjust alpha for darkness
+            
+            // Cut out the vision circle/cone using BLEND_SUBTRACT_COLORS or BLEND_ADD_COLORS with transparency
+            // For a cone, you'd draw a triangle fan. For a circle:
+            BeginBlendMode(BLEND_SUBTRACT_COLORS); // This makes WHITE subtract, effectively creating transparency
+                // To make the cutout area fully clear, you'd subtract BLACK from BLACK (which is black)
+                // then add your clear shape. Or use BLEND_ADD_COLORS for light.
+                // Let's try a simpler approach for a clear circle:
+                // DrawCircleV(screenPos, radius, ColorAlpha(BLACK, 0.0f)); // Doesn't work like this
+            EndBlendMode();
 
-    // Create the vision overlay
-    BeginTextureMode(visionOverlay);
-        ClearBackground(BLACK);  // Start with black background
-        
-        // Draw the dark overlay
-        DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, ColorAlpha(BLACK, 0.95f));
-        
-        // Cut out the vision circle using BLEND_SUBTRACT_COLORS
-        BeginBlendMode(BLEND_SUBTRACT_COLORS);
-            DrawCircleV(screenPos, radius - 140, WHITE);  // Use WHITE to cut out the circle
-        EndBlendMode();
-    EndTextureMode();
+            // Alternative for clear circle:
+            // 1. Fill overlay with dark semi-transparent
+            // 2. DrawCircleV with BLEND_MASK (need a mask texture) OR draw everything *except* the circle
+            // A common way for a "hole" is to use a shader, or:
+            // Draw a circle with full transparency using a blend mode that overwrites alpha.
+            // Or, if you are just drawing a circle of light:
+            // BeginBlendMode(BLEND_ADDITIVE); // Or BLEND_ALPHA for smooth light circle
+            // DrawCircleGradient(screenPos.x, screenPos.y, radius, ColorAlpha(WHITE,0.6f), ColorAlpha(WHITE,0.0f)); // Fading light circle
+            // EndBlendMode();
 
-    // Draw the final overlay
-    BeginBlendMode(BLEND_ALPHA);
+            // Simpler "Hole Punch" using DrawCircle and specific BlendMode:
+            // This is tricky without shaders. A common non-shader way is to draw the dark overlay,
+            // then draw the "lit" area (game world through the hole) again on top, clipped to the circle/cone.
+            // However, with RenderTexture, we can try to make a "mask":
+            // Fill with solid black for the overlay effect
+            // DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, ColorAlpha(BLACK, 0.85f));
+            // Make the circle area completely transparent in the render texture
+            // This requires a blend mode that replaces alpha. BLEND_ALPHA with a ColorAlpha(anycolor, 0.0f) might work.
+            BeginBlendMode(BLEND_ALPHA);
+                 DrawCircleV(screenPos, radius, ColorAlpha(WHITE, 0.0f)); // Make circle area fully transparent
+            EndBlendMode();
+
+
+        EndTextureMode();
+
+        // Draw the final overlay texture onto the screen
         DrawTextureRec(
             visionOverlay.texture,
-            (Rectangle){ 0, 0, (float)SCREEN_WIDTH, -(float)SCREEN_HEIGHT },  // Flip Y
+            (Rectangle){ 0, 0, (float)visionOverlay.texture.width, -(float)visionOverlay.texture.height },  // Flip Y for RenderTexture
             (Vector2){ 0, 0 },
-            WHITE
+            WHITE // No additional tint needed for the overlay itself usually
         );
-    EndBlendMode();
+    }
+
+
+    // 3. Draw UI elements (HUD) in screen space, on top of everything
+    if (currentPhase == GamePhase::SEEKING) {
+        uiManager.DrawInGameHUD(gameTimer, hidersRemaining, player.sprintValue);
+    }
 }
