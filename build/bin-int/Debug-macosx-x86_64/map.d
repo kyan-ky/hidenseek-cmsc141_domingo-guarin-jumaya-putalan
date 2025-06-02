@@ -752,7 +752,8 @@ bin-int/Debug-macosx-x86_64/map.o: ../src/map.cpp ../include/map.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_types/_nl_item.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__locale_dir/locale_base_api/bsd_locale_defaults.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/cstdarg \
-  ../include/constants.h
+  ../include/constants.h \
+  /opt/homebrew/Cellar/raylib/5.5/include/raymath.h
 ../include/map.h:
 /opt/homebrew/Cellar/raylib/5.5/include/raylib.h:
 /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdarg.h:
@@ -1508,3 +1509,4 @@ bin-int/Debug-macosx-x86_64/map.o: ../src/map.cpp ../include/map.h \
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__locale_dir/locale_base_api/bsd_locale_defaults.h:
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/cstdarg:
 ../include/constants.h:
+/opt/homebrew/Cellar/raylib/5.5/include/raymath.h:
