@@ -344,14 +344,6 @@ void GameManager::DrawInGame() {
 
     // Draw game elements with camera
     BeginMode2D(camera);
-    gameMap.Draw();
-    player.Draw();
-    for (auto& hider : hiders) {
-        hider.Draw();
-    }
-  
-    // 1. Draw game elements with camera
-    BeginMode2D(camera);
         // Draw base map and walls first
         gameMap.DrawBaseAndWalls();
         
@@ -368,7 +360,6 @@ void GameManager::DrawInGame() {
         // Draw player last so it's always on top
         player.Draw();
     EndMode2D();
-
 
     // Draw the black overlay with vision cone
     Vector2 screenPos = GetWorldToScreen2D(player.position, camera);
