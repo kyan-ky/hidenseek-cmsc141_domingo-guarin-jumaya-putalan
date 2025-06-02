@@ -33,7 +33,42 @@ GameManager::~GameManager() {
 void GameManager::ResetGameValues() {
     player.rotation = 0.0f;
     player.showAlert = false;
-    player.Init({PLAYER_RADIUS + 50.0f, PLAYER_RADIUS + 50.0f}); // Seeker starts at top left with some padding
+
+    // Define possible corner spawn points with padding
+    float padding = PLAYER_RADIUS + 50.0f; // Same padding as before
+    std::vector<Vector2> cornerSpawnPoints = {
+        {padding, padding},                                      // Top-left
+        {SCREEN_WIDTH - padding, padding},                     // Top-right
+        {padding, SCREEN_HEIGHT - padding},                    // Bottom-left
+        {SCREEN_WIDTH - padding, SCREEN_HEIGHT - padding}      // Bottom-right
+    };
+
+    Vector2 playerSpawnPos = {0, 0};
+    bool spawnPosFound = false;
+    int attempts = 0;
+    const int maxAttempts = 10; // Try up to 10 times to find a valid corner
+
+    // Randomly select a corner and check if it's valid
+    while (!spawnPosFound && attempts < maxAttempts) {
+        int cornerIndex = rand() % cornerSpawnPoints.size();
+        Vector2 potentialPos = cornerSpawnPoints[cornerIndex];
+
+        if (gameMap.IsPositionValid(potentialPos, PLAYER_RADIUS)) {
+            playerSpawnPos = potentialPos;
+            spawnPosFound = true;
+        }
+        attempts++;
+    }
+
+    // Fallback if no valid corner found (shouldn't happen with reasonable maps)
+    if (!spawnPosFound) {
+         TraceLog(LOG_WARNING, "GAME: Could not find a valid corner spawn point after %d attempts. Spawning at default top-left.", maxAttempts);
+         playerSpawnPos = {padding, padding}; // Default to top-left if no valid corner found
+         // Note: This default position might also be invalid if the entire top-left is blocked
+         // A more robust fallback might be needed for very complex maps.
+    }
+
+    player.Init(playerSpawnPos); // Initialize player at the selected valid position
 
     hiders.assign(NUM_HIDERS, Hider());
     std::vector<Vector2> startingPositions;
@@ -41,21 +76,40 @@ void GameManager::ResetGameValues() {
         Vector2 pos;
         bool positionOk;
         int attempts = 0;
+        const int maxSpawnAttempts = 100; // Limit attempts to prevent infinite loops
         do {
             positionOk = true;
-            pos = {(float)(rand() % (SCREEN_WIDTH - 100) + 50), (float)(rand() % (SCREEN_HEIGHT - 100) + 50)};
+            pos = {(float)(rand() % (SCREEN_WIDTH - 200) + 100), (float)(rand() % (SCREEN_HEIGHT - 200) + 100)}; // Generate position away from edges
+            attempts++;
+
+            // Check distance from player
             if (Vector2DistanceSqr(pos, player.position) < (PLAYER_RADIUS + HIDER_RADIUS + 50) * (PLAYER_RADIUS + HIDER_RADIUS + 50)) {
                 positionOk = false;
                 continue;
             }
+            // Check distance from already assigned hider starting positions
             for(size_t j=0; j < startingPositions.size(); ++j) {
                 if (Vector2DistanceSqr(pos, startingPositions[j]) < (HIDER_RADIUS * 4) * (HIDER_RADIUS * 4) ) {
                     positionOk = false;
                     break;
                 }
             }
-            attempts++;
-        } while(!positionOk && attempts < 50);
+            if (!positionOk) continue;
+
+            // *** NEW: Check validity against map obstacles ***
+            if (!gameMap.IsPositionValid(pos, HIDER_RADIUS)) {
+                positionOk = false;
+            }
+
+        } while(!positionOk && attempts < maxSpawnAttempts);
+
+        if (attempts >= maxSpawnAttempts) {
+            TraceLog(LOG_WARNING, "GAME: Could not find a valid spawn position for hider %d after %d attempts.", i, maxSpawnAttempts);
+            // Fallback: place at a default spot or allow potentially invalid spot (depending on desired game behavior)
+            // For now, we'll just use the last attempted position, which might be invalid.
+            // A better approach might be to place them near the player's start or a known valid spot.
+        }
+
         startingPositions.push_back(pos);
         hiders[i].Init(pos, gameMap); // Init should set FSM states and isTagged
         // Explicitly ensure these are reset if Init doesn't cover them fully for a *new game* scenario
