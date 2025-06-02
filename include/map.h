@@ -6,6 +6,7 @@
 class Map {
 public:
     Texture2D background;
+    Texture2D wallTexture;
     std::vector<Rectangle> obstacles; // Simple rectangular obstacles
     std::vector<Vector2> hidingSpots;
 
