@@ -4,22 +4,47 @@
 
 Map::Map() {
     background = {0}; // Initialize texture struct
+    // TODO: Add Texture2D wallTexture = {0}; to your Map class in map.h
+    wallTexture = {0}; // Initialize the new texture struct
 }
 
 void Map::Load() {
-    if (FileExists("game_screen_bg.png")) {
-        background = LoadTexture("game_screen_bg.png");
+    // Load the base map design
+    if (FileExists("map_design.jpg")) {
+        background = LoadTexture("map_design.jpg");
     } else {
         // Create a placeholder background if map_design.jpg is missing
         Image img = GenImageChecked(SCREEN_WIDTH, SCREEN_HEIGHT, 64, 64, DARKGRAY, GRAY);
         background = LoadTextureFromImage(img);
         UnloadImage(img);
     }
-    InitHidingSpots();
 
-    // Example obstacles (can be loaded from a file or defined procedurally)
-    // obstacles.push_back({300, 300, 100, 50}); // x, y, width, height
-    // obstacles.push_back({800, 400, 50, 150});
+    // Load the wall texture
+    if (FileExists("layer_1_bg.png")) {
+        // TODO: Load into the new wallTexture member you add to map.h
+        wallTexture = LoadTexture("layer_1_bg.png");
+    }
+
+    // Clear previous obstacles
+    obstacles.clear();
+
+    // Horizontal wall above kitchen
+    obstacles.push_back({236, 242, 394, 146});
+    obstacles.push_back({551, 169, 80, 74});
+    obstacles.push_back({630, 316, 78, 73});
+    // Top wall
+    obstacles.push_back({552, 21, 393, 74});
+    obstacles.push_back({867, 95, 77, 74});
+    // Reverse L Wall Top
+    obstacles.push_back({787, 317, 158, 73});
+    obstacles.push_back({866, 244, 79, 73});
+    // Hallway Boxes
+    obstacles.push_back({866, 462, 80, 73});
+    obstacles.push_back({563, 472, 49, 48});
+    // Bottom wall
+    obstacles.push_back({236, 533, 80, 75});
+    obstacles.push_back({236, 608, 708, 74});
+    InitHidingSpots();
 }
 
 void Map::InitHidingSpots() {
@@ -47,18 +72,27 @@ Vector2 Map::GetRandomHidingSpot() const {
 
 void Map::Unload() {
     if (background.id > 0) UnloadTexture(background);
+    // TODO: Unload wallTexture if it was loaded
+    if (wallTexture.id > 0) UnloadTexture(wallTexture);
 }
 
 void Map::Draw() {
+    // Draw the base map design first
     if (background.id > 0) {
         DrawTexture(background, 0, 0, WHITE);
     } else {
         ClearBackground(RAYWHITE); // Fallback if no texture
     }
 
+    // Draw the wall texture on top
+    // TODO: Draw wallTexture if it was loaded
+    if (wallTexture.id > 0) {
+        DrawTexture(wallTexture, 0, 0, WHITE);
+    }
+
     // Draw obstacles (for debugging or if they are simple visual elements)
     for (const auto& obs : obstacles) {
-        DrawRectangleRec(obs, Fade(BLACK, 0.5f));
+        DrawRectangleRec(obs, Fade(BLACK, 0.0f));
     }
 }
 

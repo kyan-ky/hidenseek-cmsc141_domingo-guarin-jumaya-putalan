@@ -156,6 +156,13 @@ void GameManager::UpdateInGame() {
     if (currentPhase == GamePhase::HIDING) {
         hidingPhaseElapsed += deltaTime;
 
+        // Option to skip hiding phase for debugging/testing
+        if (IsKeyPressed(KEY_SPACE)) {
+            TraceLog(LOG_INFO, "GAME: Skipping hiding phase.");
+            StartSeekingPhase();
+            return; // Exit update early to prevent further hiding phase logic this frame
+        }
+
         // Hiders find spots during the entire HIDING_PHASE_DURATION
         for (auto& hider : hiders) {
             if (!hider.isTagged) {
@@ -309,9 +316,6 @@ void GameManager::DrawInGame() {
     }
     EndMode2D();
 
-    // Draw UI elements in screen space
-    uiManager.DrawInGameHUD(gameTimer, hidersRemaining, player.sprintValue);
-
     // Draw the black overlay with vision cone
     Vector2 screenPos = GetWorldToScreen2D(player.position, camera);
     float radius = PLAYER_VISION_RADIUS * camera.zoom;
@@ -339,4 +343,7 @@ void GameManager::DrawInGame() {
             WHITE
         );
     EndBlendMode();
+
+    // Draw UI elements in screen space
+    uiManager.DrawInGameHUD(gameTimer, hidersRemaining, player.sprintValue);
 }
