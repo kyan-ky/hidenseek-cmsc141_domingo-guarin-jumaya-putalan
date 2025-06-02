@@ -22,12 +22,28 @@ GameManager::GameManager() : currentScreen(GameScreen::MAIN_MENU), currentPhase(
 
     // Initialize vision overlay texture
     visionOverlay = LoadRenderTexture(SCREEN_WIDTH, SCREEN_HEIGHT);
+
+    // Initialize music
+    hidingPhaseMusic = {0};
+    seekingPhaseMusic = {0};
+
+    // Load phase music
+    if (FileExists("countdown.mp3")) {
+        hidingPhaseMusic = LoadMusicStream("countdown.mp3");
+        SetMusicVolume(hidingPhaseMusic, 0.5f);
+    }
+    if (FileExists("ingame.mp3")) {
+        seekingPhaseMusic = LoadMusicStream("ingame.mp3");
+        SetMusicVolume(seekingPhaseMusic, 0.5f);
+    }
 }
 
 GameManager::~GameManager() {
     uiManager.UnloadAssets();
     gameMap.Unload();
     UnloadRenderTexture(visionOverlay);
+    if (hidingPhaseMusic.stream.buffer != NULL) UnloadMusicStream(hidingPhaseMusic);
+    if (seekingPhaseMusic.stream.buffer != NULL) UnloadMusicStream(seekingPhaseMusic);
 }
 
 void GameManager::ResetGameValues() {
@@ -111,7 +127,7 @@ void GameManager::ResetGameValues() {
         }
 
         startingPositions.push_back(pos);
-        hiders[i].Init(pos, gameMap); // Init should set FSM states and isTagged
+        hiders[i].Init(pos, gameMap, i); // Pass the hider ID (0-4) to Init
         // Explicitly ensure these are reset if Init doesn't cover them fully for a *new game* scenario
         hiders[i].isTagged = false; 
         hiders[i].hidingState = HiderHidingFSMState::SCOUTING; 
@@ -133,11 +149,21 @@ void GameManager::InitGame() {
 
 void GameManager::StartHidingPhase() {
     currentPhase = GamePhase::HIDING;
-    gameTimer = HIDING_PHASE_DURATION; // This is the total duration for hiding AFTER "close eyes"
-    hidingPhaseElapsed = 0.0f;         // Reset for the "close eyes" part specifically
-    // TraceLog(LOG_INFO, "GAME: StartHidingPhase - Timer: %.2f, Elapsed: %.2f", gameTimer, hidingPhaseElapsed); // DEBUG
+    gameTimer = HIDING_PHASE_DURATION;
+    hidingPhaseElapsed = 0.0f;
+
+    // Stop seeking phase music if playing
+    if (seekingPhaseMusic.stream.buffer != NULL) {
+        StopMusicStream(seekingPhaseMusic);
+    }
+
+    // Start hiding phase music
+    if (hidingPhaseMusic.stream.buffer != NULL) {
+        PlayMusicStream(hidingPhaseMusic);
+    }
+
     for (auto& hider : hiders) {
-        if (!hider.isTagged) { // Should always be true at the start of a new game
+        if (!hider.isTagged) {
             hider.hidingState = HiderHidingFSMState::SCOUTING;
         }
     }
@@ -145,8 +171,18 @@ void GameManager::StartHidingPhase() {
 
 void GameManager::StartSeekingPhase() {
     currentPhase = GamePhase::SEEKING;
-    gameTimer = SEEKING_PHASE_DURATION; // Timer for the actual seeking
-    // TraceLog(LOG_INFO, "GAME: StartSeekingPhase - Timer: %.2f", gameTimer); // DEBUG
+    gameTimer = SEEKING_PHASE_DURATION;
+
+    // Stop hiding phase music if playing
+    if (hidingPhaseMusic.stream.buffer != NULL) {
+        StopMusicStream(hidingPhaseMusic);
+    }
+
+    // Start seeking phase music
+    if (seekingPhaseMusic.stream.buffer != NULL) {
+        PlayMusicStream(seekingPhaseMusic);
+    }
+
     for (auto& hider : hiders) {
         if (!hider.isTagged) {
             hider.seekingState = HiderSeekingFSMState::IDLING;
@@ -198,7 +234,6 @@ void GameManager::UpdateGameOver() { /* Stub */ }
 void GameManager::UpdateInGame() {
     if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_P)) {
         currentScreen = GameScreen::PAUSE_MENU;
-        // TraceLog(LOG_INFO, "GAME: Paused. CurrentScreen: %d", (int)currentScreen); // DEBUG
         return;
     }
 
@@ -207,14 +242,20 @@ void GameManager::UpdateInGame() {
     // Update camera to follow player
     camera.target = player.position;
 
+    // Update current phase music
+    if (currentPhase == GamePhase::HIDING && hidingPhaseMusic.stream.buffer != NULL) {
+        UpdateMusicStream(hidingPhaseMusic);
+    } else if (currentPhase == GamePhase::SEEKING && seekingPhaseMusic.stream.buffer != NULL) {
+        UpdateMusicStream(seekingPhaseMusic);
+    }
+
     if (currentPhase == GamePhase::HIDING) {
         hidingPhaseElapsed += deltaTime;
 
         // Option to skip hiding phase for debugging/testing
         if (IsKeyPressed(KEY_SPACE)) {
-            TraceLog(LOG_INFO, "GAME: Skipping hiding phase.");
             StartSeekingPhase();
-            return; // Exit update early to prevent further hiding phase logic this frame
+            return;
         }
 
         // Hiders find spots during the entire HIDING_PHASE_DURATION
@@ -224,39 +265,32 @@ void GameManager::UpdateInGame() {
             }
         }
 
-        // The "Close your eyes" visual part uses hidingPhaseElapsed (drawn in DrawInGame)
-        // The actual gameTimer for hiding starts counting down *after* the visual part conceptually,
-        // or rather, it represents the time hiders have *left* to hide.
-        // Let's make the gameTimer decrement during this phase too.
         gameTimer -= deltaTime;
 
-        if (gameTimer <= 0) { // Hiding time is up (after "close eyes")
+        if (gameTimer <= 0) {
             StartSeekingPhase();
         }
-        // No win/loss checks during HIDING phase typically
-        return; // Player does not update/move during HIDING phase
+        return;
     }
 
     // --- SEEKING PHASE ---
     if (currentPhase == GamePhase::SEEKING) {
         gameTimer -= deltaTime;
-        player.Update(deltaTime, gameMap, hiders); // Player can move and act
+        player.Update(deltaTime, gameMap, hiders);
 
         hidersRemaining = 0;
         bool playerTaggedByHider = false;
 
         for (auto& hider : hiders) {
             if (!hider.isTagged) {
-                hider.Update(deltaTime, currentPhase, player, gameMap, hiders); // Hiders evade/attack
+                hider.Update(deltaTime, currentPhase, player, gameMap, hiders);
                 hidersRemaining++;
 
-                // Check if player is tagged by hider
                 if (hider.seekingState == HiderSeekingFSMState::ATTACKING) {
                     float distanceToPlayer = Vector2Distance(player.position, hider.position);
                     float collisionDistance = HIDER_RADIUS + PLAYER_RADIUS;
                     if (distanceToPlayer <= collisionDistance) {
                         playerTaggedByHider = true;
-                        TraceLog(LOG_INFO, "GAME: Player tagged by hider! Distance: %.2f", distanceToPlayer);
                     }
                 }
             }
@@ -270,7 +304,7 @@ void GameManager::UpdateInGame() {
             }
         }
         
-        hidersRemaining = 0; // Recalculate after potential tags
+        hidersRemaining = 0;
         for(const auto& hider : hiders) {
             if (!hider.isTagged) hidersRemaining++;
         }

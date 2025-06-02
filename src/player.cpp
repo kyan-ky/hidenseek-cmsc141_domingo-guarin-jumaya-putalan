@@ -5,21 +5,27 @@
 #include <cmath>    // For atan2f, cosf, sinf, fabsf
 
 Player::Player() : position({0, 0}), rotation(0.0f), speed(PLAYER_SPEED),
-                   sprintValue(SPRINT_MAX), isSprinting(false), showAlert(false), texture{0}, alertTexture{0} { // Initialize textures
+                   sprintValue(SPRINT_MAX), isSprinting(false), showAlert(false), 
+                   texture{0}, alertTexture{0}, tagTexture{0}, tagSound{0} { // Initialize textures and sound
     
-    TraceLog(LOG_INFO, "PLAYER_CONSTRUCTOR: Loading seeker_stand.png");
     if (FileExists("seeker_stand.png")) { 
         this->texture = LoadTexture("seeker_stand.png");
-        if (this->texture.id == 0) {
-            TraceLog(LOG_ERROR, "PLAYER_CONSTRUCTOR: FAILED to load seeker_stand.png texture.");
-        } else {
-            TraceLog(LOG_INFO, "PLAYER_CONSTRUCTOR: seeker_stand.png loaded successfully. ID: %d", this->texture.id);
-        }
-    } else {
-        TraceLog(LOG_WARNING, "PLAYER_CONSTRUCTOR: Sprite 'seeker_stand.png' not found in resources/.");
     }
 
-     if (FileExists("alert_icon.png")) {
+    // Load tag texture
+    if (FileExists("seeker_tag.png")) {
+        this->tagTexture = LoadTexture("seeker_tag.png");
+    }
+
+    // Load tag sound
+    if (FileExists("tag.mp3")) {
+        this->tagSound = LoadSound("tag.mp3");
+        if (this->tagSound.frameCount > 0) {
+            SetSoundVolume(this->tagSound, 1.0f);
+        }
+    }
+
+    if (FileExists("alert_icon.png")) {
         alertTexture = LoadTexture("alert_icon.png");
     } else {
         Image img = GenImageColor(20, 20, RED); // Simple red square for alert
@@ -177,15 +183,20 @@ void Player::Draw() {
     }
     
     // Draw Player
-    if (texture.id > 0 && texture.width > 0 && texture.height > 0) { // Added width/height check
-        Rectangle sourceRec = { 0.0f, 0.0f, (float)texture.width, (float)texture.height };
+    Texture2D currentTexture = texture;
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && tagTexture.id > 0) {
+        currentTexture = tagTexture;
+    }
+
+    if (currentTexture.id > 0 && currentTexture.width > 0 && currentTexture.height > 0) {
+        Rectangle sourceRec = { 0.0f, 0.0f, (float)currentTexture.width, (float)currentTexture.height };
         Rectangle destRec = { position.x, position.y, PLAYER_RADIUS * 2, PLAYER_RADIUS * 2 };
         Vector2 origin = { PLAYER_RADIUS, PLAYER_RADIUS }; 
-        DrawTexturePro(texture, sourceRec, destRec, origin, rotation, WHITE);
+        DrawTexturePro(currentTexture, sourceRec, destRec, origin, rotation, WHITE);
     } else {
         // Fallback
         DrawCircleV(position, PLAYER_RADIUS, PLAYER_COLOR);
-        if (texture.id == 0) { TraceLog(LOG_DEBUG, "PLAYER_DRAW: Texture ID is 0, drawing placeholder.");}
+        if (currentTexture.id == 0) { TraceLog(LOG_DEBUG, "PLAYER_DRAW: Texture ID is 0, drawing placeholder.");}
     }
 
     // Draw Alert Symbol if active
@@ -227,7 +238,13 @@ bool Player::CanTag(const Hider& hider) const {
     // Check if the hider's center is within the player's TAG_RANGE
     if (distanceToHider <= TAG_RANGE) {
         // Then check if the hider is within the player's vision cone
-        return IsInVisionCone(hider.position, PLAYER_VISION_CONE_ANGLE, PLAYER_VISION_RADIUS);
+        if (IsInVisionCone(hider.position, PLAYER_VISION_CONE_ANGLE, PLAYER_VISION_RADIUS)) {
+            // Play tag sound if available
+            if (tagSound.frameCount > 0) {
+                PlaySound(tagSound);
+            }
+            return true;
+        }
     }
     return false;
 }

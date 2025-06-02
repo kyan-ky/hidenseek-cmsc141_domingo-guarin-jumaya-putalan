@@ -19,6 +19,8 @@ public:
     UIManager uiManager;
     Camera2D camera; // Camera that follows the player
     RenderTexture2D visionOverlay; // For vision circle effect
+    Music hidingPhaseMusic; // Music for hiding phase
+    Music seekingPhaseMusic; // Music for seeking phase
 
     float gameTimer; // Used for both hiding and seeking phases
     float hidingPhaseElapsed;

@@ -15,6 +15,8 @@ public:
 
     Font titleTextFont;  // Used for the main game title AND "How to Play" screen title
     Font bodyTextFont;   // For button text, etc.
+    Music mainMenuMusic; // Music for the main menu
+    Sound buttonClickSound; // Sound for button clicks
     // Font hudTextFont;  // If you have it
 
     int currentInstructionPage; // To track which instruction page is visible (1 or 2)
