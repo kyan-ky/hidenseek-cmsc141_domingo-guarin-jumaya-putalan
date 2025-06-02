@@ -19,10 +19,10 @@ endif
 # #############################################
 
 ifeq ($(origin CC), default)
-  CC = gcc
+  CC = clang
 endif
 ifeq ($(origin CXX), default)
-  CXX = g++
+  CXX = clang++
 endif
 ifeq ($(origin AR), default)
   AR = ar
@@ -32,8 +32,9 @@ INCLUDES += -I../include -I/opt/homebrew/Cellar/raylib/5.5/include
 FORCE_INCLUDE +=
 ALL_CPPFLAGS += $(CPPFLAGS) -MD -MP $(DEFINES) $(INCLUDES)
 ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
-LIBS += -lraylib -lopengl32 -lgdi32 -lwinmm
+LIBS += -lraylib
 LDDEPS +=
+ALL_LDFLAGS += $(LDFLAGS) -L/opt/homebrew/Cellar/raylib/5.5/lib -m64 -framework OpenGL -framework Cocoa -framework IOKit -framework CoreAudio -framework CoreVideo
 LINKCMD = $(CXX) -o "$@" $(OBJECTS) $(RESOURCES) $(ALL_LDFLAGS) $(LIBS)
 define PREBUILDCMDS
 endef
@@ -43,22 +44,20 @@ define POSTBUILDCMDS
 endef
 
 ifeq ($(config),debug)
-TARGETDIR = bin/Debug-windows-x86_64
-TARGET = $(TARGETDIR)/hidenseek-cmsc141_domingo-guarin-jumaya-putalan.exe
-OBJDIR = bin-int/Debug-windows-x86_64
+TARGETDIR = bin/Debug-macosx-x86_64
+TARGET = $(TARGETDIR)/hidenseek-cmsc141_domingo-guarin-jumaya-putalan
+OBJDIR = bin-int/Debug-macosx-x86_64
 DEFINES += -DPLATFORM_DESKTOP -DDEBUG
-ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m64 -g
-ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m64 -g -std=c++17
-ALL_LDFLAGS += $(LDFLAGS) -L/opt/homebrew/Cellar/raylib/5.5/lib -L/usr/lib64 -m64
+ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m64 -g -std=c++17
+ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m64 -g -std=c++17 -std=c++17
 
 else ifeq ($(config),release)
-TARGETDIR = bin/Release-windows-x86_64
-TARGET = $(TARGETDIR)/hidenseek-cmsc141_domingo-guarin-jumaya-putalan.exe
-OBJDIR = bin-int/Release-windows-x86_64
+TARGETDIR = bin/Release-macosx-x86_64
+TARGET = $(TARGETDIR)/hidenseek-cmsc141_domingo-guarin-jumaya-putalan
+OBJDIR = bin-int/Release-macosx-x86_64
 DEFINES += -DPLATFORM_DESKTOP -DNDEBUG
-ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m64 -O2
-ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m64 -O2 -std=c++17
-ALL_LDFLAGS += $(LDFLAGS) -L/opt/homebrew/Cellar/raylib/5.5/lib -L/usr/lib64 -m64 -s
+ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m64 -O2 -std=c++17
+ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m64 -O2 -std=c++17 -std=c++17
 
 endif
 
@@ -71,14 +70,12 @@ endif
 
 GENERATED :=
 OBJECTS :=
-RESOURCES :=
 
 GENERATED += $(OBJDIR)/game_manager.o
 GENERATED += $(OBJDIR)/hider.o
 GENERATED += $(OBJDIR)/main.o
 GENERATED += $(OBJDIR)/map.o
 GENERATED += $(OBJDIR)/player.o
-GENERATED += $(OBJDIR)/sapplication.res
 GENERATED += $(OBJDIR)/ui_manager.o
 OBJECTS += $(OBJDIR)/game_manager.o
 OBJECTS += $(OBJDIR)/hider.o
@@ -86,7 +83,6 @@ OBJECTS += $(OBJDIR)/main.o
 OBJECTS += $(OBJDIR)/map.o
 OBJECTS += $(OBJDIR)/player.o
 OBJECTS += $(OBJDIR)/ui_manager.o
-RESOURCES += $(OBJDIR)/sapplication.res
 
 # Rules
 # #############################################
@@ -94,7 +90,7 @@ RESOURCES += $(OBJDIR)/sapplication.res
 all: $(TARGET)
 	@:
 
-$(TARGET): $(GENERATED) $(OBJECTS) $(LDDEPS) $(RESOURCES) | $(TARGETDIR)
+$(TARGET): $(GENERATED) $(OBJECTS) $(LDDEPS) | $(TARGETDIR)
 	$(PRELINKCMDS)
 	@echo Linking hidenseek-cmsc141_domingo-guarin-jumaya-putalan
 	$(SILENT) $(LINKCMD)
@@ -165,9 +161,6 @@ $(OBJDIR)/map.o: ../src/map.cpp
 $(OBJDIR)/player.o: ../src/player.cpp
 	@echo "$(notdir $<)"
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/sapplication.res: ../src/sapplication.rc
-	@echo "$(notdir $<)"
-	$(SILENT) $(RESCOMP) $< -O coff -o "$@" $(ALL_RESFLAGS)
 $(OBJDIR)/ui_manager.o: ../src/ui_manager.cpp
 	@echo "$(notdir $<)"
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
