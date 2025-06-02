@@ -21,6 +21,8 @@ public:
     RenderTexture2D visionOverlay; // For vision circle effect
     Music hidingPhaseMusic; // Music for hiding phase
     Music seekingPhaseMusic; // Music for seeking phase
+    Sound victorySound; // Sound for winning
+    Sound gameOverSound; // Sound for losing
 
     float gameTimer; // Used for both hiding and seeking phases
     float hidingPhaseElapsed;
