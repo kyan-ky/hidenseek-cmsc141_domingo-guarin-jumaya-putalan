@@ -398,24 +398,27 @@ void GameManager::DrawInGame() {
         DrawTextEx(timerDetailFont, timerText, 
                    {(SCREEN_WIDTH - timerTextSize.x) / 2, SCREEN_HEIGHT * 0.6f - timerTextSize.y / 2}, 
                    actualTimerFontSize, 1, timerColor);
-
-        return; // Don't draw the game world or vision overlay during this countdown
-    }
-  
-    // 1. Draw game elements with camera
-    BeginMode2D(camera); // Assuming 'camera' is a member of GameManager or accessible
-        gameMap.Draw();
-        // Draw hiders first so player is on top, or before foreground objects if you implement those
+      
+    // Draw game elements with camera
+    BeginMode2D(camera);
+        // Draw base map and walls first
+        gameMap.DrawBaseAndWalls();
+        
+        // Draw hiders before the object texture so they appear behind hiding spots
         for (auto& hider : hiders) {
-            // Consider drawing tagged hiders differently or not at all
-            if (!hider.isTagged) { // Example: only draw non-tagged
-                 hider.Draw();
+            if (!hider.isTagged) {
+                hider.Draw();
             }
         }
+        
+        // Draw object texture (hiding spots) on top of hiders, with transparency based on player position
+        gameMap.DrawObjects(player.position);
+        
+        // Draw player last so it's always on top
         player.Draw();
     EndMode2D();
-  
-   // Draw the black overlay with vision cone
+
+    // Draw the black overlay with vision cone
     Vector2 screenPos = GetWorldToScreen2D(player.position, camera);
     float radius = PLAYER_VISION_RADIUS * camera.zoom;
     float coneAngle = 60.0f; // Angle of the vision cone in degrees
@@ -429,7 +432,7 @@ void GameManager::DrawInGame() {
         
         // Cut out the vision circle using BLEND_SUBTRACT_COLORS
         BeginBlendMode(BLEND_SUBTRACT_COLORS);
-            DrawCircleV(screenPos, radius - 140, WHITE);  // Use WHITE to cut out the circle
+            DrawCircleV(screenPos, radius - 200, WHITE);  // Use WHITE to cut out the circle
         EndBlendMode();
     EndTextureMode();
 

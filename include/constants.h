@@ -29,7 +29,25 @@ const float HIDER_ATTACK_COOLDOWN = 3.0f; // seconds
 const float HIDER_ATTACK_RANGE = 30.0f;
 const int NUM_HIDERS = 5;
 
-// Game Timer
+// Hiding Spot Constants (as proportions of 1280x720)
+#define HSP(x, y) {(x) * SCREEN_WIDTH / 1280.0f, (y) * SCREEN_HEIGHT / 720.0f}
+
+const Vector2 HIDING_SPOT_BUSH_G1 = HSP(166, 225);
+const Vector2 HIDING_SPOT_BUSH_G2 = HSP(160, 633);
+const Vector2 HIDING_SPOT_BUSH_G3 = HSP(1101, 631);
+const Vector2 HIDING_SPOT_BUSH_G4 = HSP(1152, 259);
+const Vector2 HIDING_SPOT_BUSH_B1 = HSP(98, 443);
+const Vector2 HIDING_SPOT_BUSH_B2 = HSP(420, 71);
+const Vector2 HIDING_SPOT_BUSH_B3 = HSP(335, 194);
+const Vector2 HIDING_SPOT_TABLE_1 = HSP(443, 489);
+const Vector2 HIDING_SPOT_TABLE_2 = HSP(750, 208);
+const Vector2 HIDING_SPOT_WASHER = HSP(404, 593);
+const Vector2 HIDING_SPOT_BOX = HSP(832, 133);
+const Vector2 HIDING_SPOT_COUCH_1 = HSP(689, 580);
+const Vector2 HIDING_SPOT_COUCH_2 = HSP(759, 550);
+#undef HSP
+
+// Game Time
 const float HIDING_PHASE_DURATION = 10.0f; // seconds for hiders to hide
 const float SEEKING_PHASE_DURATION = 120.0f; // 2 minutes for seeker
 
@@ -68,15 +86,6 @@ const Color PAUSE_MENU_TEXT_COLOR = WHITE;
 const Color GAME_OVER_WIN_COLOR = GetColor(0xFFCF56FF);
 const Color GAME_OVER_LOSS_COLOR = GetColor(0xAF3800FF);
 const Color GAME_OVER_REASON_TEXT_COLOR = WHITE;
-
-
-// Map (Example values, adjust to your map_design.jpg)
-inline const Vector2 HIDING_SPOT_1 = {200, 200};
-inline const Vector2 HIDING_SPOT_2 = {1000, 150};
-inline const Vector2 HIDING_SPOT_3 = {1100, 600};
-inline const Vector2 HIDING_SPOT_4 = {150, 550};
-inline const Vector2 HIDING_SPOT_5 = {700, 400};
-// Add more if NUM_HIDERS is larger
 
 // Alert symbol
 const float ALERT_BEHIND_DISTANCE = 100.0f;
