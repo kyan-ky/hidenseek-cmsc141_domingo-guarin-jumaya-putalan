@@ -13,6 +13,8 @@ public:
     bool isSprinting;
     Texture2D texture;
     Texture2D alertTexture;
+    Texture2D tagTexture; // New texture for tagging state
+    Sound tagSound; // New sound for tagging
     bool showAlert;
     std::vector<Vector2> visionConePoints;
     bool isTagged;

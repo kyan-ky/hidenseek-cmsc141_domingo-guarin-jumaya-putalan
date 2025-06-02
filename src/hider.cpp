@@ -4,34 +4,59 @@
 #include "raymath.h"
 #include <cstdlib> // For rand
 #include <cmath>   // For atan2f, fabsf
+#include <cstdio>  // For snprintf
 
 Hider::Hider() : position({0, 0}), rotation(0.0f), speed(HIDER_SPEED), isTagged(false),
                  hidingState(HiderHidingFSMState::SCOUTING),
                  seekingState(HiderSeekingFSMState::IDLING),
-                 attackCooldownTimer(0.0f), texture{0} { 
-    
-    TraceLog(LOG_INFO, "HIDER_CONSTRUCTOR: Loading hider_stand.png");
-    if (FileExists("hider_stand.png")) { 
-        this->texture = LoadTexture("hider_stand.png");
-        if (this->texture.id == 0) {
-            TraceLog(LOG_ERROR, "HIDER_CONSTRUCTOR: FAILED to load hider_stand.png texture.");
-        } else {
-            TraceLog(LOG_INFO, "HIDER_CONSTRUCTOR: hider_stand.png loaded successfully. ID: %d", this->texture.id);
-        }
-    } else {
-        TraceLog(LOG_WARNING, "HIDER_CONSTRUCTOR: Sprite 'hider_stand.png' not found in resources/.");
-    }
+                 attackCooldownTimer(0.0f), texture{0}, attackTexture{0}, hiderId(0) { 
+    // Textures will be loaded in Init
 }
 
-void Hider::Init(Vector2 startPos, const Map& gameMap) {
+void Hider::Init(Vector2 startPos, const Map& gameMap, int id) {
     position = startPos;
     isTagged = false;
     hidingState = HiderHidingFSMState::SCOUTING;
     seekingState = HiderSeekingFSMState::IDLING;
     attackCooldownTimer = 0.0f;
     rotation = (float)(rand() % 360); // Random initial rotation
-    // Potentially scout for an initial hiding spot right away if needed for Hiding Phase
-    // Scout(gameMap); // Let game manager call scout
+    hiderId = id;
+
+    // Load appropriate textures based on hider ID
+    char standTextureName[32];
+    char tagTextureName[32];
+    
+    if (hiderId == 0) {
+        snprintf(standTextureName, sizeof(standTextureName), "hider_stand.png");
+        snprintf(tagTextureName, sizeof(tagTextureName), "hider_tag.png");
+    } else {
+        snprintf(standTextureName, sizeof(standTextureName), "hider%d_stand.png", hiderId);
+        snprintf(tagTextureName, sizeof(tagTextureName), "hider%d_tag.png", hiderId);
+    }
+
+    TraceLog(LOG_INFO, "HIDER_INIT: Loading %s for hider %d", standTextureName, hiderId);
+    if (FileExists(standTextureName)) { 
+        this->texture = LoadTexture(standTextureName);
+        if (this->texture.id == 0) {
+            TraceLog(LOG_ERROR, "HIDER_INIT: FAILED to load %s texture.", standTextureName);
+        } else {
+            TraceLog(LOG_INFO, "HIDER_INIT: %s loaded successfully. ID: %d", standTextureName, this->texture.id);
+        }
+    } else {
+        TraceLog(LOG_WARNING, "HIDER_INIT: Sprite '%s' not found in resources/.", standTextureName);
+    }
+
+    TraceLog(LOG_INFO, "HIDER_INIT: Loading %s for hider %d", tagTextureName, hiderId);
+    if (FileExists(tagTextureName)) { 
+        this->attackTexture = LoadTexture(tagTextureName);
+        if (this->attackTexture.id == 0) {
+            TraceLog(LOG_ERROR, "HIDER_INIT: FAILED to load %s texture.", tagTextureName);
+        } else {
+            TraceLog(LOG_INFO, "HIDER_INIT: %s loaded successfully. ID: %d", tagTextureName, this->attackTexture.id);
+        }
+    } else {
+        TraceLog(LOG_WARNING, "HIDER_INIT: Sprite '%s' not found in resources/.", tagTextureName);
+    }
 }
 
 Vector2 Hider::GetForwardVector() const {
@@ -590,27 +615,33 @@ void Hider::Evade(float deltaTime, const Player& player, const Map& gameMap) {
 void Hider::Draw() {
     if (this->isTagged) {
         if (texture.id > 0 && texture.width > 0 && texture.height > 0) { // Added width/height check
-            // ... (draw faded tagged sprite) ...
-             Rectangle sourceRec = { 0.0f, 0.0f, (float)texture.width, (float)texture.height };
-             Rectangle destRec = { position.x, position.y, HIDER_RADIUS * 2, HIDER_RADIUS * 2 };
-             Vector2 origin = { HIDER_RADIUS, HIDER_RADIUS };
-             DrawTexturePro(texture, sourceRec, destRec, origin, rotation, Fade(GRAY, 0.5f));
+            Rectangle sourceRec = { 0.0f, 0.0f, (float)texture.width, (float)texture.height };
+            Rectangle destRec = { position.x, position.y, HIDER_RADIUS * 2, HIDER_RADIUS * 2 };
+            Vector2 origin = { HIDER_RADIUS, HIDER_RADIUS };
+            DrawTexturePro(texture, sourceRec, destRec, origin, rotation, WHITE);
         } else {
-            DrawCircleV(position, HIDER_RADIUS, HIDER_TAGGED_COLOR);
+            DrawCircleV(position, HIDER_RADIUS, RED);
         }
-        return; 
-    }
-
-    if (texture.id > 0 && texture.width > 0 && texture.height > 0) { // Added width/height check
-        Rectangle sourceRec = { 0.0f, 0.0f, (float)texture.width, (float)texture.height };
-        Rectangle destRec = { position.x, position.y, HIDER_RADIUS * 2, HIDER_RADIUS * 2 };
-        Vector2 origin = { HIDER_RADIUS, HIDER_RADIUS }; 
-        DrawTexturePro(texture, sourceRec, destRec, origin, rotation, WHITE); 
     } else {
-        DrawCircleV(position, HIDER_RADIUS, HIDER_COLOR);
+        // Choose the appropriate texture based on state
+        Texture2D currentTexture = texture;
+        if (seekingState == HiderSeekingFSMState::ATTACKING && attackTexture.id > 0) {
+            currentTexture = attackTexture;
+        }
+
+        if (currentTexture.id > 0 && currentTexture.width > 0 && currentTexture.height > 0) {
+            Rectangle sourceRec = { 0.0f, 0.0f, (float)currentTexture.width, (float)currentTexture.height };
+            Rectangle destRec = { position.x, position.y, HIDER_RADIUS * 2, HIDER_RADIUS * 2 };
+            Vector2 origin = { HIDER_RADIUS, HIDER_RADIUS };
+            DrawTexturePro(currentTexture, sourceRec, destRec, origin, rotation, WHITE);
+        } else {
+            DrawCircleV(position, HIDER_RADIUS, BLUE);
+        }
+
+        // Draw vision cone for debugging
         Vector2 forward = GetForwardVector();
         DrawLineV(position, Vector2Add(position, Vector2Scale(forward, HIDER_RADIUS)), BLACK);
-        if (texture.id == 0) { TraceLog(LOG_DEBUG, "HIDER_DRAW: Texture ID is 0, drawing placeholder.");}
+        if (currentTexture.id == 0) { TraceLog(LOG_DEBUG, "HIDER_DRAW: Texture ID is 0, drawing placeholder.");}
     }
     // ... (optional vision cone) ...
 }

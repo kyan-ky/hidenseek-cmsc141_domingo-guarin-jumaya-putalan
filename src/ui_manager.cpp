@@ -21,6 +21,8 @@ UIManager::UIManager() : currentInstructionPage(1) {
     howToPlayInstructions1 = {0}; 
     howToPlayInstructions2 = {0}; 
     gameOverBg = {0};
+    mainMenuMusic = {0};
+    buttonClickSound = {0};
 }
 
 void UIManager::LoadAssets() {
@@ -29,6 +31,19 @@ void UIManager::LoadAssets() {
     if (FileExists("instruction_1.png")) howToPlayInstructions1 = LoadTexture("instruction_1.png");
     if (FileExists("instruction_2.png")) howToPlayInstructions2 = LoadTexture("instruction_2.png");
     if (FileExists("game_over_bg.png")) gameOverBg = LoadTexture("game_over_bg.png"); 
+
+    // Load main menu music
+    if (FileExists("main_menu.mp3")) {
+        mainMenuMusic = LoadMusicStream("main_menu.mp3");
+        SetMusicVolume(mainMenuMusic, 0.5f); // Set volume to 50%
+        PlayMusicStream(mainMenuMusic);
+    }
+
+    // Load button click sound
+    if (FileExists("button_click.mp3")) {
+        buttonClickSound = LoadSound("button_click.mp3");
+        SetSoundVolume(buttonClickSound, 0.5f); // Set volume to 50%
+    }
 }
 
 void UIManager::UnloadAssets() {
@@ -39,7 +54,8 @@ void UIManager::UnloadAssets() {
     if (gameOverBg.id > 0) UnloadTexture(gameOverBg);
     if (titleTextFont.texture.id != GetFontDefault().texture.id) UnloadFont(titleTextFont); 
     if (bodyTextFont.texture.id != GetFontDefault().texture.id) UnloadFont(bodyTextFont); 
-
+    if (mainMenuMusic.stream.buffer != NULL) UnloadMusicStream(mainMenuMusic);
+    if (buttonClickSound.stream.buffer != NULL) UnloadSound(buttonClickSound);
 }
 
 bool UIManager::DrawButton(Rectangle bounds, const char* text, int fontSize, Color baseColor, Color hoverColor, Color textColor) {
@@ -67,6 +83,10 @@ bool UIManager::DrawButton(Rectangle bounds, const char* text, int fontSize, Col
         }
         if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mousePoint, bounds)) {
             clicked = true;
+            // Play button click sound
+            if (buttonClickSound.stream.buffer != NULL) {
+                PlaySound(buttonClickSound);
+            }
         }
     }
 
@@ -104,6 +124,11 @@ bool UIManager::DrawButton(Rectangle bounds, const char* text, int fontSize, Col
 }
 
 void UIManager::DrawMainMenu(GameScreen& currentScreen, bool& quitGameFlag, bool& wantsToStartNewGame) {
+    // Update music stream
+    if (mainMenuMusic.stream.buffer != NULL) {
+        UpdateMusicStream(mainMenuMusic);
+    }
+
     if (titleBg.id > 0) DrawTexture(titleBg, 0, 0, WHITE);
     else ClearBackground(DARKGRAY); 
 
@@ -166,6 +191,11 @@ void UIManager::DrawMainMenu(GameScreen& currentScreen, bool& quitGameFlag, bool
 
 
 void UIManager::DrawHowToPlay(GameScreen& currentScreen) {
+    // Update main menu music
+    if (mainMenuMusic.stream.buffer != NULL) {
+        UpdateMusicStream(mainMenuMusic);
+    }
+
     if (howToPlayBg.id > 0) DrawTexture(howToPlayBg, 0, 0, WHITE);
     else ClearBackground(DARKBLUE); 
 

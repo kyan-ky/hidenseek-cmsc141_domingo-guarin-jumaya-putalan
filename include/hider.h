@@ -31,12 +31,14 @@ public:
     float timeSinceLastPlayerMovement = 0.0f;
     Vector2 lastPlayerPosition = {0, 0};
     Texture2D texture;
+    Texture2D attackTexture; // New texture for attacking state
+    int hiderId; // ID to identify which hider this is (0-4)
 
     HiderHidingFSMState hidingState;
     HiderSeekingFSMState seekingState;
 
     Hider();
-    void Init(Vector2 startPos, const Map& gameMap);
+    void Init(Vector2 startPos, const Map& gameMap, int id = 0);
     void Update(float deltaTime, GamePhase currentPhase, Player& player, const Map& gameMap, const std::vector<Hider>& otherHiders);
     void Draw();
     bool IsInVision(Vector2 targetPos) const;
