@@ -420,59 +420,26 @@ void GameManager::DrawInGame() {
     float radius = PLAYER_VISION_RADIUS * camera.zoom;
     float coneAngle = 60.0f; // Angle of the vision cone in degrees
 
-    // 2. Update and Draw the Vision Overlay (only during seeking phase)
-    if (currentPhase == GamePhase::SEEKING) { // Only apply vision overlay in seeking phase
-        Vector2 screenPos = GetWorldToScreen2D(player.position, camera);
-        float radius = PLAYER_VISION_RADIUS * camera.zoom; 
-        // float coneAngle = PLAYER_VISION_CONE_ANGLE; // Use defined constant
+    // Create the vision overlay
+    BeginTextureMode(visionOverlay);
+        ClearBackground(BLACK);  // Start with black background
+        
+        // Draw the dark overlay
+        DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, ColorAlpha(BLACK, 0.95f));
+        
+        // Cut out the vision circle using BLEND_SUBTRACT_COLORS
+        BeginBlendMode(BLEND_SUBTRACT_COLORS);
+            DrawCircleV(screenPos, radius - 140, WHITE);  // Use WHITE to cut out the circle
+        EndBlendMode();
+    EndTextureMode();
 
-        // Create the vision overlay
-        BeginTextureMode(visionOverlay); // Assuming 'visionOverlay' is a RenderTexture2D member of GameManager
-            ClearBackground(ColorAlpha(BLACK, 0.0f)); // Start with fully transparent for the overlay RT
-            
-            // Draw the dark overlay that covers everything
-            DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, ColorAlpha(BLACK, 0.85f)); // Adjust alpha for darkness
-            
-            // Cut out the vision circle/cone using BLEND_SUBTRACT_COLORS or BLEND_ADD_COLORS with transparency
-            // For a cone, you'd draw a triangle fan. For a circle:
-            BeginBlendMode(BLEND_SUBTRACT_COLORS); // This makes WHITE subtract, effectively creating transparency
-                // To make the cutout area fully clear, you'd subtract BLACK from BLACK (which is black)
-                // then add your clear shape. Or use BLEND_ADD_COLORS for light.
-                // Let's try a simpler approach for a clear circle:
-                // DrawCircleV(screenPos, radius, ColorAlpha(BLACK, 0.0f)); // Doesn't work like this
-            EndBlendMode();
-
-            // Alternative for clear circle:
-            // 1. Fill overlay with dark semi-transparent
-            // 2. DrawCircleV with BLEND_MASK (need a mask texture) OR draw everything *except* the circle
-            // A common way for a "hole" is to use a shader, or:
-            // Draw a circle with full transparency using a blend mode that overwrites alpha.
-            // Or, if you are just drawing a circle of light:
-            // BeginBlendMode(BLEND_ADDITIVE); // Or BLEND_ALPHA for smooth light circle
-            // DrawCircleGradient(screenPos.x, screenPos.y, radius, ColorAlpha(WHITE,0.6f), ColorAlpha(WHITE,0.0f)); // Fading light circle
-            // EndBlendMode();
-
-            // Simpler "Hole Punch" using DrawCircle and specific BlendMode:
-            // This is tricky without shaders. A common non-shader way is to draw the dark overlay,
-            // then draw the "lit" area (game world through the hole) again on top, clipped to the circle/cone.
-            // However, with RenderTexture, we can try to make a "mask":
-            // Fill with solid black for the overlay effect
-            // DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, ColorAlpha(BLACK, 0.85f));
-            // Make the circle area completely transparent in the render texture
-            // This requires a blend mode that replaces alpha. BLEND_ALPHA with a ColorAlpha(anycolor, 0.0f) might work.
-            BeginBlendMode(BLEND_ALPHA);
-                 DrawCircleV(screenPos, radius, ColorAlpha(WHITE, 0.0f)); // Make circle area fully transparent
-            EndBlendMode();
-
-
-        EndTextureMode();
-
-        // Draw the final overlay texture onto the screen
+    // Draw the final overlay
+    BeginBlendMode(BLEND_ALPHA);
         DrawTextureRec(
             visionOverlay.texture,
-            (Rectangle){ 0, 0, (float)visionOverlay.texture.width, -(float)visionOverlay.texture.height },  // Flip Y for RenderTexture
+            (Rectangle){ 0, 0, (float)SCREEN_WIDTH, -(float)SCREEN_HEIGHT },  // Flip Y
             (Vector2){ 0, 0 },
-            WHITE // No additional tint needed for the overlay itself usually
+            WHITE
         );
     EndBlendMode();
 
