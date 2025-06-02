@@ -5,16 +5,20 @@
 #include <cmath>    // For atan2f, cosf, sinf, fabsf
 
 Player::Player() : position({0, 0}), rotation(0.0f), speed(PLAYER_SPEED),
-                   sprintValue(SPRINT_MAX), isSprinting(false), showAlert(false),
-                   isTagged(false) {
-    // Attempt to load texture, use placeholder if fails
-    if (FileExists("seeker_sprite.jpg")) {
-        texture = LoadTexture("seeker_sprite.jpg");
+                   sprintValue(SPRINT_MAX), isSprinting(false), showAlert(false), texture{0}, alertTexture{0} { // Initialize textures
+    
+    TraceLog(LOG_INFO, "PLAYER_CONSTRUCTOR: Loading seeker_stand.png");
+    if (FileExists("seeker_stand.png")) { 
+        this->texture = LoadTexture("seeker_stand.png");
+        if (this->texture.id == 0) {
+            TraceLog(LOG_ERROR, "PLAYER_CONSTRUCTOR: FAILED to load seeker_stand.png texture.");
+        } else {
+            TraceLog(LOG_INFO, "PLAYER_CONSTRUCTOR: seeker_stand.png loaded successfully. ID: %d", this->texture.id);
+        }
     } else {
-        Image img = GenImageColor( (int)PLAYER_RADIUS * 2, (int)PLAYER_RADIUS * 2, PLAYER_COLOR);
-        texture = LoadTextureFromImage(img);
-        UnloadImage(img);
+        TraceLog(LOG_WARNING, "PLAYER_CONSTRUCTOR: Sprite 'seeker_stand.png' not found in resources/.");
     }
+
      if (FileExists("alert_icon.png")) {
         alertTexture = LoadTexture("alert_icon.png");
     } else {
@@ -164,11 +168,16 @@ void Player::Draw() {
     }
     
     // Draw Player
-    DrawTexturePro(texture,
-                   {0, 0, (float)texture.width, (float)texture.height}, // source rec
-                   {position.x, position.y, PLAYER_RADIUS * 2, PLAYER_RADIUS * 2}, // dest rec
-                   {PLAYER_RADIUS, PLAYER_RADIUS}, // origin
-                   rotation, WHITE);
+    if (texture.id > 0 && texture.width > 0 && texture.height > 0) { // Added width/height check
+        Rectangle sourceRec = { 0.0f, 0.0f, (float)texture.width, (float)texture.height };
+        Rectangle destRec = { position.x, position.y, PLAYER_RADIUS * 2, PLAYER_RADIUS * 2 };
+        Vector2 origin = { PLAYER_RADIUS, PLAYER_RADIUS }; 
+        DrawTexturePro(texture, sourceRec, destRec, origin, rotation, WHITE);
+    } else {
+        // Fallback
+        DrawCircleV(position, PLAYER_RADIUS, PLAYER_COLOR);
+        if (texture.id == 0) { TraceLog(LOG_DEBUG, "PLAYER_DRAW: Texture ID is 0, drawing placeholder.");}
+    }
 
     // Draw Alert Symbol if active
     if (showAlert) {

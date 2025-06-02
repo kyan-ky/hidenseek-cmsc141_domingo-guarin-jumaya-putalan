@@ -8,14 +8,18 @@
 Hider::Hider() : position({0, 0}), rotation(0.0f), speed(HIDER_SPEED), isTagged(false),
                  hidingState(HiderHidingFSMState::SCOUTING),
                  seekingState(HiderSeekingFSMState::IDLING),
-                 attackCooldownTimer(0.0f) {
-    // Attempt to load texture, use placeholder if fails
-    if (FileExists("hider_sprite.jpg")) {
-        texture = LoadTexture("hider_sprite.jpg");
+                 attackCooldownTimer(0.0f), texture{0} { 
+    
+    TraceLog(LOG_INFO, "HIDER_CONSTRUCTOR: Loading hider_stand.png");
+    if (FileExists("hider_stand.png")) { 
+        this->texture = LoadTexture("hider_stand.png");
+        if (this->texture.id == 0) {
+            TraceLog(LOG_ERROR, "HIDER_CONSTRUCTOR: FAILED to load hider_stand.png texture.");
+        } else {
+            TraceLog(LOG_INFO, "HIDER_CONSTRUCTOR: hider_stand.png loaded successfully. ID: %d", this->texture.id);
+        }
     } else {
-        Image img = GenImageColor((int)HIDER_RADIUS * 2, (int)HIDER_RADIUS * 2, HIDER_COLOR);
-        texture = LoadTextureFromImage(img);
-        UnloadImage(img);
+        TraceLog(LOG_WARNING, "HIDER_CONSTRUCTOR: Sprite 'hider_stand.png' not found in resources/.");
     }
 }
 
@@ -454,19 +458,31 @@ void Hider::Evade(float deltaTime, const Player& player, const Map& gameMap) {
 }
 
 void Hider::Draw() {
-    Color hiderDrawColor = isTagged ? HIDER_TAGGED_COLOR : HIDER_COLOR;
-    if (texture.id > 0) {
-         DrawTexturePro(texture,
-                   {0, 0, (float)texture.width, (float)texture.height},
-                   {position.x, position.y, HIDER_RADIUS * 2, HIDER_RADIUS * 2},
-                   {HIDER_RADIUS, HIDER_RADIUS}, // origin
-                   rotation, isTagged ? Fade(WHITE, 0.5f) : WHITE);
+    if (this->isTagged) {
+        if (texture.id > 0 && texture.width > 0 && texture.height > 0) { // Added width/height check
+            // ... (draw faded tagged sprite) ...
+             Rectangle sourceRec = { 0.0f, 0.0f, (float)texture.width, (float)texture.height };
+             Rectangle destRec = { position.x, position.y, HIDER_RADIUS * 2, HIDER_RADIUS * 2 };
+             Vector2 origin = { HIDER_RADIUS, HIDER_RADIUS };
+             DrawTexturePro(texture, sourceRec, destRec, origin, rotation, Fade(GRAY, 0.5f));
+        } else {
+            DrawCircleV(position, HIDER_RADIUS, HIDER_TAGGED_COLOR);
+        }
+        return; 
+    }
+
+    if (texture.id > 0 && texture.width > 0 && texture.height > 0) { // Added width/height check
+        Rectangle sourceRec = { 0.0f, 0.0f, (float)texture.width, (float)texture.height };
+        Rectangle destRec = { position.x, position.y, HIDER_RADIUS * 2, HIDER_RADIUS * 2 };
+        Vector2 origin = { HIDER_RADIUS, HIDER_RADIUS }; 
+        DrawTexturePro(texture, sourceRec, destRec, origin, rotation, WHITE); 
     } else {
-        DrawCircleV(position, HIDER_RADIUS, hiderDrawColor);
-        // Draw a line for direction
+        DrawCircleV(position, HIDER_RADIUS, HIDER_COLOR);
         Vector2 forward = GetForwardVector();
         DrawLineV(position, Vector2Add(position, Vector2Scale(forward, HIDER_RADIUS)), BLACK);
+        if (texture.id == 0) { TraceLog(LOG_DEBUG, "HIDER_DRAW: Texture ID is 0, drawing placeholder.");}
     }
+    // ... (optional vision cone) ...
 }
 
 bool Hider::CanAttack(const Player& player) const {
