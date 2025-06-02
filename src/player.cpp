@@ -5,7 +5,8 @@
 #include <cmath>    // For atan2f, cosf, sinf, fabsf
 
 Player::Player() : position({0, 0}), rotation(0.0f), speed(PLAYER_SPEED),
-                   sprintValue(SPRINT_MAX), isSprinting(false), showAlert(false) {
+                   sprintValue(SPRINT_MAX), isSprinting(false), showAlert(false),
+                   isTagged(false) {
     // Attempt to load texture, use placeholder if fails
     if (FileExists("seeker_sprite.jpg")) {
         texture = LoadTexture("seeker_sprite.jpg");
@@ -30,6 +31,7 @@ void Player::Init(Vector2 startPos) {
     sprintValue = SPRINT_MAX;
     isSprinting = false;
     showAlert = false;
+    isTagged = false;
     UpdateVision();
 }
 
@@ -210,4 +212,8 @@ bool Player::CanTag(const Hider& hider) const {
         return IsInVisionCone(hider.position, PLAYER_VISION_CONE_ANGLE, PLAYER_VISION_RADIUS);
     }
     return false;
+}
+
+bool Player::IsLookingAt(Vector2 targetPos) const {
+    return IsInVisionCone(targetPos, PLAYER_VISION_CONE_ANGLE, PLAYER_VISION_RADIUS);
 }

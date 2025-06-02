@@ -250,9 +250,14 @@ void GameManager::UpdateInGame() {
                 hider.Update(deltaTime, currentPhase, player, gameMap, hiders); // Hiders evade/attack
                 hidersRemaining++;
 
-                if (hider.seekingState == HiderSeekingFSMState::ATTACKING &&
-                    CheckCollisionCircles(player.position, PLAYER_RADIUS, hider.position, HIDER_RADIUS)) {
-                    playerTaggedByHider = true;
+                // Check if player is tagged by hider
+                if (hider.seekingState == HiderSeekingFSMState::ATTACKING) {
+                    float distanceToPlayer = Vector2Distance(player.position, hider.position);
+                    float collisionDistance = HIDER_RADIUS + PLAYER_RADIUS;
+                    if (distanceToPlayer <= collisionDistance) {
+                        playerTaggedByHider = true;
+                        TraceLog(LOG_INFO, "GAME: Player tagged by hider! Distance: %.2f", distanceToPlayer);
+                    }
                 }
             }
         }
