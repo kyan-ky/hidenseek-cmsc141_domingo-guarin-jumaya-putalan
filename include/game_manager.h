@@ -17,24 +17,33 @@ public:
     std::vector<Hider> hiders;
     Map gameMap;
     UIManager uiManager;
-    Camera2D camera; // Camera that follows the player
-    RenderTexture2D visionOverlay; // For vision circle effect
+    Camera2D camera; 
+    RenderTexture2D visionOverlay; 
 
-    float gameTimer; // Used for both hiding and seeking phases
+    float gameTimer; 
     float hidingPhaseElapsed;
     int hidersRemaining;
     bool playerWon;
-    float lastGameTime; // To display on game over
+    float lastGameTime;
 
-    bool quitGame; // Flag to exit game loop
-    bool restartGameFlag; // Flag to re-initialize game
+    bool quitGame; 
+    bool restartGameFlag; 
+                          
+    Music mainMenuMusic;
+    Sound sfxButtonClick;
+    Music countdownMusic;
+    Music inGameSeekingMusic;
+    Sound sfxTag;
+    Music gameOverMusic;
+    Music gameWinMusic;
 
     GameManager();
     ~GameManager();
 
-    void InitGame(); // Initializes/Resets the game state for a new round
+    void InitGame();
     void Update();
     void Draw();
+    void PlayButtonSound();
 
 private:
     void UpdateMainMenu();
@@ -53,5 +62,10 @@ private:
     void ResetGameValues();
     void StartHidingPhase();
     void StartSeekingPhase();
+
+    void LoadAudioAssets();
+    void UnloadAudioAssets();
+    void PlayMainMenuMusic();
+    void StopMainMenuMusic();
 };
 
