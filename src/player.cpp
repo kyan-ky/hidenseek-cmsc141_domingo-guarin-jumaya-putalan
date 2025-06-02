@@ -41,7 +41,8 @@ Vector2 Player::GetForwardVector() const {
 
 void Player::HandleInput(const Map& map) {
     Vector2 moveDir = {0, 0};
-    isSprinting = IsKeyDown(KEY_LEFT_SHIFT) && sprintValue > 0;
+    // Only allow sprinting if sprint value is at least 25% of maximum
+    isSprinting = IsKeyDown(KEY_LEFT_SHIFT) && sprintValue >= (SPRINT_MAX * 0.25f);
     float currentSpeed = isSprinting ? PLAYER_SPRINT_SPEED : PLAYER_SPEED;
 
     if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)) moveDir.y -= 1;

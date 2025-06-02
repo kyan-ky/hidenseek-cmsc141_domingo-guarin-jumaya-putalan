@@ -166,63 +166,69 @@ void Hider::Scout(const Map& gameMap, const Player& player, const std::vector<Hi
 }
 
 void Hider::MoveToHidingSpot(float deltaTime, const Map& gameMap) {
-    // Verify the target spot is still valid
-    if (!gameMap.IsPositionValid(targetHidingSpot, HIDER_RADIUS)) {
-        hidingState = HiderHidingFSMState::SCOUTING;
-        return;
-    }
+    // Check for nearby hiding spots
+    const std::vector<Vector2>& availableSpots = gameMap.GetHidingSpots();
+    float minDistanceToSpot = HIDER_VISION_RADIUS;
+    Vector2 closestSpot = {0, 0};
+    bool foundSpot = false;
+    float bestScore = 0.0f;
 
-    // Calculate distance to target
-    float distanceToTarget = Vector2Distance(position, targetHidingSpot);
-
-    // Snap to exact position when very close
-    if (distanceToTarget < 2.0f) {
-        // Double check if the final position is valid before snapping
-        if (gameMap.IsPositionValid(targetHidingSpot, HIDER_RADIUS)) {
-            position = targetHidingSpot; // Snap exactly to spot
-            hidingState = HiderHidingFSMState::HIDING;
-        } else {
-            // If the final position is invalid, go back to scouting
-            hidingState = HiderHidingFSMState::SCOUTING;
-            return;
-        }
-    }
-
-    // Calculate direction to target
-    Vector2 direction = Vector2Normalize(Vector2Subtract(targetHidingSpot, position));
-    
-    // Calculate movement for this frame
-    float moveDistance = speed * deltaTime;
-    
-    // Try smaller steps if we're close to obstacles
-    const int numSteps = 4; // Number of steps to check
-    bool validMove = false;
-    Vector2 finalPos = position;
-    
-    for (int i = 1; i <= numSteps; i++) {
-        float stepDistance = moveDistance * (i / (float)numSteps);
-        Vector2 testPos = Vector2Add(position, Vector2Scale(direction, stepDistance));
+    for (const auto& spot : availableSpots) {
+        float distanceToSpot = Vector2Distance(position, spot);
         
-        if (gameMap.IsPositionValid(testPos, HIDER_RADIUS)) {
-            finalPos = testPos;
-            validMove = true;
-        } else {
-            break; // Stop if we hit an obstacle
+        // Calculate a score for this spot based on distance to hider
+        float score = 1.0f - (distanceToSpot / HIDER_VISION_RADIUS);
+        
+        // Only consider spots that are valid and have a good score
+        if (score > bestScore && gameMap.IsPositionValid(spot, HIDER_RADIUS)) {
+            bestScore = score;
+            closestSpot = spot;
+            foundSpot = true;
         }
     }
-    
-    if (validMove) {
-        position = finalPos;
+
+    // If we found a good hiding spot, move towards it
+    if (foundSpot) {
+        Vector2 directionToSpot = Vector2Normalize(Vector2Subtract(closestSpot, position));
+        Vector2 newPos = Vector2Add(position, Vector2Scale(directionToSpot, speed * 1.2f * deltaTime));
+        
+        if (gameMap.IsPositionValid(newPos, HIDER_RADIUS)) {
+            position = newPos;
+            rotation = atan2f(directionToSpot.y, directionToSpot.x) * RAD2DEG;
+            
+            // If we're close enough to the spot, start hiding
+            if (Vector2Distance(position, closestSpot) < HIDER_RADIUS * 2) {
+                position = closestSpot; // Snap to spot
+                hidingState = HiderHidingFSMState::HIDING;
+                return;
+            }
+        } else {
+            // If we can't move directly to the spot, try to find a path around obstacles
+            float angles[] = {45.0f, -45.0f, 90.0f, -90.0f};
+            bool foundPath = false;
+            
+            for (float angle : angles) {
+                Vector2 rotatedDir = Vector2Rotate(directionToSpot, angle * DEG2RAD);
+                newPos = Vector2Add(position, Vector2Scale(rotatedDir, speed * 1.2f * deltaTime));
+                
+                if (gameMap.IsPositionValid(newPos, HIDER_RADIUS)) {
+                    position = newPos;
+                    rotation = atan2f(rotatedDir.y, rotatedDir.x) * RAD2DEG;
+                    foundPath = true;
+                    break;
+                }
+            }
+            
+            if (!foundPath) {
+                // If we can't find a path to the spot, go back to scouting
+                hidingState = HiderHidingFSMState::SCOUTING;
+                return;
+            }
+        }
     } else {
-        // If we hit an obstacle, try to find a path around it
-        // For now, just go back to scouting
+        // If no good spot found, go back to scouting
         hidingState = HiderHidingFSMState::SCOUTING;
         return;
-    }
-    
-    // Update rotation to face target
-    if (Vector2LengthSqr(direction) > 0) {
-        rotation = atan2f(direction.y, direction.x) * RAD2DEG;
     }
 }
 
@@ -255,23 +261,114 @@ void Hider::UpdateSeekingPhase(float deltaTime, Player& player, const Map& gameM
 }
 
 void Hider::Idle(const Player& player, const Map& gameMap) {
-    // Always check for player's presence and vision first
-    bool playerInVision = IsInVision(player.position);
+    // Check for direct collision first
     float distanceToPlayer = Vector2Distance(position, player.position);
     float collisionDistance = HIDER_RADIUS + PLAYER_RADIUS;
+    if (distanceToPlayer <= collisionDistance) {
+        seekingState = HiderSeekingFSMState::EVADING;
+        return;
+    }
+
+    // Check if we're at a hiding spot
+    bool isAtHidingSpot = false;
+    Vector2 currentSpot = {0, 0};
+    for (const auto& spot : gameMap.GetHidingSpots()) {
+        if (Vector2Distance(position, spot) < HIDER_RADIUS * 2) {
+            isAtHidingSpot = true;
+            currentSpot = spot;
+            break;
+        }
+    }
+
+    // Check for very close proximity to player (0.1f)
+    if (distanceToPlayer <= 0.1f) {
+        seekingState = HiderSeekingFSMState::EVADING;
+        return;
+    }
+
+    // If we're at a hiding spot
+    if (isAtHidingSpot) {
+        // Check if player is inside our current hiding spot
+        float distanceToSpot = Vector2Distance(player.position, currentSpot);
+        if (distanceToSpot < HIDER_RADIUS * 2) {
+            // Calculate direction away from player
+            Vector2 directionAwayFromPlayer = Vector2Normalize(Vector2Subtract(position, player.position));
+            
+            // Try to move away from player at increased speed
+            Vector2 newPos = Vector2Add(position, Vector2Scale(directionAwayFromPlayer, speed * 1.2f * GetFrameTime()));
+
+            // If we can't move directly away, try multiple angles
+            if (!gameMap.IsPositionValid(newPos, HIDER_RADIUS)) {
+                // Try angles in both directions, starting with smaller angles
+                float angles[] = {45.0f, -45.0f, 90.0f, -90.0f, 135.0f, -135.0f};
+                bool foundValidMove = false;
+                
+                for (float angle : angles) {
+                    Vector2 rotatedDir = Vector2Rotate(directionAwayFromPlayer, angle * DEG2RAD);
+                    newPos = Vector2Add(position, Vector2Scale(rotatedDir, speed * 1.2f * GetFrameTime()));
+                    
+                    if (gameMap.IsPositionValid(newPos, HIDER_RADIUS)) {
+                        foundValidMove = true;
+                        directionAwayFromPlayer = rotatedDir; // Update direction for rotation
+                        break;
+                    }
+                }
+                
+                // If no valid move found, try to move in the opposite direction of the player
+                if (!foundValidMove) {
+                    Vector2 oppositeDir = Vector2Scale(directionAwayFromPlayer, -1.0f);
+                    newPos = Vector2Add(position, Vector2Scale(oppositeDir, speed * 0.8f * GetFrameTime()));
+                    
+                    if (gameMap.IsPositionValid(newPos, HIDER_RADIUS)) {
+                        directionAwayFromPlayer = oppositeDir;
+                    } else {
+                        // If still stuck, switch to evading
+                        seekingState = HiderSeekingFSMState::EVADING;
+                        return;
+                    }
+                }
+            }
+
+            // If we found a valid position, move there
+            if (gameMap.IsPositionValid(newPos, HIDER_RADIUS)) {
+                position = newPos;
+                // Update rotation to face away from player
+                rotation = atan2f(directionAwayFromPlayer.y, directionAwayFromPlayer.x) * RAD2DEG;
+            } else {
+                // If we can't move, switch to evading
+                seekingState = HiderSeekingFSMState::EVADING;
+                return;
+            }
+            return;
+        }
+        // Stay still at hiding spot if player is not inside it
+        return;
+    }
+
+    // If not at a hiding spot, use normal idle behavior
+    bool playerInVision = IsInVision(player.position);
     
     // Check if player is in vision or too close
     if (playerInVision || distanceToPlayer < HIDER_VISION_RADIUS) {
-        // Immediately transition to evading if there's a collision
-        if (distanceToPlayer <= collisionDistance) {
-            seekingState = HiderSeekingFSMState::EVADING;
-            return;
-        }
-        
         // Check if player is looking at us
         if (player.IsLookingAt(position)) {
             seekingState = HiderSeekingFSMState::EVADING;
             return;
+        }
+
+        static float alertTimer = 0.0f;
+        // If player is in vision but not looking at us, check for alert status
+        if (player.IsInAlertStatus()) {
+            alertTimer += GetFrameTime();
+            
+            if (alertTimer >= 1.5f) {
+                seekingState = HiderSeekingFSMState::ATTACKING;
+                alertTimer = 0.0f;
+                return;
+            }
+        } else {
+            // Reset timer if player is not in alert status
+            alertTimer = 0.0f;
         }
 
         // If player is in vision but not looking at us, move around
@@ -313,6 +410,21 @@ void Hider::Idle(const Player& player, const Map& gameMap) {
 }
 
 void Hider::Evade(float deltaTime, const Player& player, const Map& gameMap) {
+    // Check if player is in alert status
+    static float alertTimer = 0.0f;
+    if (player.IsInAlertStatus()) {
+        alertTimer += GetFrameTime();
+        
+        if (alertTimer >= 1.5f) {
+            seekingState = HiderSeekingFSMState::ATTACKING;
+            alertTimer = 0.0f;
+            return;
+        }
+    } else {
+        // Reset timer if player is not in alert status
+        alertTimer = 0.0f;
+    }
+
     // Check if we're stuck (can't move in any direction)
     bool isStuck = true;
     float angles[] = {0.0f, 45.0f, -45.0f, 90.0f, -90.0f, 135.0f, -135.0f, 180.0f};
@@ -338,9 +450,27 @@ void Hider::Evade(float deltaTime, const Player& player, const Map& gameMap) {
     bool foundSpot = false;
     float bestScore = 0.0f;
 
+    // First, check if player is near any hiding spot
+    bool playerNearHidingSpot = false;
+    Vector2 playerNearSpot = {0, 0};
+    for (const auto& spot : availableSpots) {
+        float distanceToPlayer = Vector2Distance(spot, player.position);
+        if (distanceToPlayer < HIDER_VISION_RADIUS) {
+            playerNearHidingSpot = true;
+            playerNearSpot = spot;
+            break;
+        }
+    }
+
+    // Find a new hiding spot, avoiding the one near the player
     for (const auto& spot : availableSpots) {
         float distanceToSpot = Vector2Distance(position, spot);
         float distanceToPlayer = Vector2Distance(spot, player.position);
+        
+        // Skip spots that are too close to the player
+        if (distanceToPlayer < HIDER_VISION_RADIUS) {
+            continue;
+        }
         
         // Calculate a score for this spot based on distance to player and distance to hider
         float score = (distanceToPlayer / HIDER_VISION_RADIUS) - (distanceToSpot / HIDER_VISION_RADIUS);

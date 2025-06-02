@@ -27,6 +27,7 @@ public:
     bool IsInVisionCone(Vector2 targetPos, float coneAngle, float visionRadius) const;
     bool IsLookingAt(Vector2 targetPos) const;
     void SetTagged(bool tagged) { isTagged = tagged; }
+    bool IsInAlertStatus() const { return showAlert; }
 
 private:
     void UpdateVision();
