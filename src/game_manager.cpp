@@ -259,7 +259,7 @@ void GameManager::Draw() {
         default:
             break;
     } 
-    DrawFPS(SCREEN_WIDTH - 90, 10);
+    //DrawFPS(SCREEN_WIDTH - 90, 10);
     EndDrawing();
 }
 
