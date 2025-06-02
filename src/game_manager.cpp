@@ -76,40 +76,21 @@ void GameManager::ResetGameValues() {
         Vector2 pos;
         bool positionOk;
         int attempts = 0;
-        const int maxSpawnAttempts = 100; // Limit attempts to prevent infinite loops
         do {
             positionOk = true;
-            pos = {(float)(rand() % (SCREEN_WIDTH - 200) + 100), (float)(rand() % (SCREEN_HEIGHT - 200) + 100)}; // Generate position away from edges
-            attempts++;
-
-            // Check distance from player
+            pos = {(float)(rand() % (SCREEN_WIDTH - 100) + 50), (float)(rand() % (SCREEN_HEIGHT - 100) + 50)};
             if (Vector2DistanceSqr(pos, player.position) < (PLAYER_RADIUS + HIDER_RADIUS + 50) * (PLAYER_RADIUS + HIDER_RADIUS + 50)) {
                 positionOk = false;
                 continue;
             }
-            // Check distance from already assigned hider starting positions
             for(size_t j=0; j < startingPositions.size(); ++j) {
                 if (Vector2DistanceSqr(pos, startingPositions[j]) < (HIDER_RADIUS * 4) * (HIDER_RADIUS * 4) ) {
                     positionOk = false;
                     break;
                 }
             }
-            if (!positionOk) continue;
-
-            // *** NEW: Check validity against map obstacles ***
-            if (!gameMap.IsPositionValid(pos, HIDER_RADIUS)) {
-                positionOk = false;
-            }
-
-        } while(!positionOk && attempts < maxSpawnAttempts);
-
-        if (attempts >= maxSpawnAttempts) {
-            TraceLog(LOG_WARNING, "GAME: Could not find a valid spawn position for hider %d after %d attempts.", i, maxSpawnAttempts);
-            // Fallback: place at a default spot or allow potentially invalid spot (depending on desired game behavior)
-            // For now, we'll just use the last attempted position, which might be invalid.
-            // A better approach might be to place them near the player's start or a known valid spot.
-        }
-
+            attempts++;
+        } while(!positionOk && attempts < 50);
         startingPositions.push_back(pos);
         hiders[i].Init(pos, gameMap); // Init should set FSM states and isTagged
         // Explicitly ensure these are reset if Init doesn't cover them fully for a *new game* scenario
@@ -320,102 +301,58 @@ void GameManager::Draw() {
         default:
             break;
     } 
-    //DrawFPS(SCREEN_WIDTH - 90, 10);
+    DrawFPS(SCREEN_WIDTH - 90, 10);
     EndDrawing();
 }
 
-// In src/game_manager.cpp
-
 void GameManager::DrawInGame() {
-    // --- HIDING PHASE VISUALS ("Countdown" screen) ---
-    if (currentPhase == GamePhase::HIDING && hidingPhaseElapsed < HIDING_PHASE_DURATION) {
-        ClearBackground(BLACK); // Start with a black screen
+    // --- HIDING PHASE VISUALS ("Close Your Eyes" screen) ---
+    if (currentPhase == GamePhase::HIDING && hidingPhaseElapsed < HIDING_PHASE_DURATION) { // Show during entire hiding phase duration
+        DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, BLACK);
 
-        float time = GetTime(); 
-        float displayTimeRemaining = HIDING_PHASE_DURATION - hidingPhaseElapsed;
-
-        // Define Stages for Messages
-        float stage1Duration = 4.0f; 
-        float stage3Duration = 2.0f; 
+        float visualCountdownDuration = 5.0f; // How long "Close your eyes" shows prominently
+        float hidingMessageDuration = HIDING_PHASE_DURATION - visualCountdownDuration; // How long "Hiders are hiding" shows
 
         const char* msg = nullptr;
-        int msgFontSize = 70; 
-        Color msgColor = WHITE;
-        float msgPulseScale = 1.0f;
+        float alpha = 1.0f;
+        float displayTimeRemaining = HIDING_PHASE_DURATION - hidingPhaseElapsed;
 
-        Font messageFont = (uiManager.titleTextFont.texture.id != 0) ? uiManager.titleTextFont : GetFontDefault();
-        Font timerDetailFont = (uiManager.bodyTextFont.texture.id != 0) ? uiManager.bodyTextFont : GetFontDefault();
-
-        if (hidingPhaseElapsed < stage1Duration) {
+        if (hidingPhaseElapsed < visualCountdownDuration) {
             msg = "CLOSE YOUR EYES!";
-            msgColor = GetColor(0xAF3800FF);
-            msgFontSize = 80;
-            float pulseSpeed = 3.0f;
-            msgPulseScale = 1.0f + 0.05f * sinf(time * pulseSpeed); 
-        } else if (hidingPhaseElapsed < (HIDING_PHASE_DURATION - stage3Duration)) {
-            msg = "Hiders are hiding...";
-            msgColor = GetColor(0xEDEAD0FF);
-            msgFontSize = 60;
+            // Optional: Could make alpha fade in/out for this message too
         } else if (hidingPhaseElapsed < HIDING_PHASE_DURATION) {
-            msg = "GET READY!";
-            msgColor = GetColor(0xFFCF56FF);
-            msgFontSize = 90;
-            float pulseSpeed = 6.0f;
-            msgPulseScale = 1.0f + 0.1f * fabsf(sinf(time * pulseSpeed)); 
-
-            if (hidingPhaseElapsed >= (HIDING_PHASE_DURATION - stage3Duration) && 
-                hidingPhaseElapsed < (HIDING_PHASE_DURATION - stage3Duration + 0.1f)) { 
-                DrawRectangle(0,0,SCREEN_WIDTH, SCREEN_HEIGHT, Fade(WHITE, 0.3f));
-            }
+            msg = "Hiders are hiding...";
+            // Optional: Fade this message in/out
+        } else {
+            msg = "GET READY!"; // Brief message before seeking starts
+        }
+        
+        if (msg) { // Only draw if msg is set
+            int fontSize = 56;
+            int textWidth = MeasureText(msg, fontSize);
+            DrawText(msg, (SCREEN_WIDTH - textWidth) / 2, SCREEN_HEIGHT / 2 - fontSize, fontSize, Fade(WHITE, alpha));
         }
 
-        // Draw the main message
-        if (msg) { 
-            float actualMsgFontSize = msgFontSize * msgPulseScale;
-            Vector2 textSize = MeasureTextEx(messageFont, msg, actualMsgFontSize, 1);
-            DrawTextEx(messageFont, msg, 
-                       {(SCREEN_WIDTH - textSize.x) / 2, SCREEN_HEIGHT * 0.4f - textSize.y / 2}, 
-                       actualMsgFontSize, 1, msgColor);
-        }
-
-        // Draw Timer
         char timerText[16];
         snprintf(timerText, sizeof(timerText), "%.1f", displayTimeRemaining > 0 ? displayTimeRemaining : 0.0f);
-        
-        int timerFontSize = 70;
-        Color timerColor = GetColor(0xEDEAD0FF);
-        float timerPulseScale = 1.0f;
+        int timerFontSize = 36;
+        int timerWidth = MeasureText(timerText, timerFontSize);
+        DrawText(timerText, (SCREEN_WIDTH - timerWidth) / 2, SCREEN_HEIGHT / 2 + 20, timerFontSize, WHITE);
 
-        if (displayTimeRemaining <= 3.5f && displayTimeRemaining > 0) { 
-            timerColor = GetColor(0xFFCF56FF);
-            float pulseSpeed = 5.0f;
-            timerPulseScale = 1.0f + 0.08f * fabsf(sinf(time * pulseSpeed * 2.0f)); 
-             if (displayTimeRemaining <= 1.5f) timerColor = GetColor(0xAF3800FF);
-        }
-        
-        float actualTimerFontSize = timerFontSize * timerPulseScale;
-        Vector2 timerTextSize = MeasureTextEx(timerDetailFont, timerText, actualTimerFontSize, 1); 
-        DrawTextEx(timerDetailFont, timerText, 
-                   {(SCREEN_WIDTH - timerTextSize.x) / 2, SCREEN_HEIGHT * 0.6f - timerTextSize.y / 2}, 
-                   actualTimerFontSize, 1, timerColor);
-
-        return; // Don't draw the game world or vision overlay during this countdown
+        return; // Don't draw the game world during this "Close your eyes" visual
     }
-  
-    // 1. Draw game elements with camera
-    BeginMode2D(camera); // Assuming 'camera' is a member of GameManager or accessible
-        gameMap.Draw();
-        // Draw hiders first so player is on top, or before foreground objects if you implement those
-        for (auto& hider : hiders) {
-            // Consider drawing tagged hiders differently or not at all
-            if (!hider.isTagged) { // Example: only draw non-tagged
-                 hider.Draw();
-            }
-        }
-        player.Draw();
+
+    // Draw game elements with camera
+    BeginMode2D(camera);
+    gameMap.Draw();
+    player.Draw();
+    for (auto& hider : hiders) {
+        hider.Draw();
+    }
     EndMode2D();
-  
-   // Draw the black overlay with vision cone
+
+
+    // Draw the black overlay with vision cone
     Vector2 screenPos = GetWorldToScreen2D(player.position, camera);
     float radius = PLAYER_VISION_RADIUS * camera.zoom;
     float coneAngle = 60.0f; // Angle of the vision cone in degrees
