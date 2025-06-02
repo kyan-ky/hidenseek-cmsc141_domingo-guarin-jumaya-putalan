@@ -29,7 +29,23 @@ const float HIDER_ATTACK_COOLDOWN = 3.0f; // seconds
 const float HIDER_ATTACK_RANGE = 30.0f;
 const int NUM_HIDERS = 5;
 
-// Game Timer
+// Hiding Spot Constants
+const Vector2 HIDING_SPOT_BUSH_G1 = {166, 225};
+const Vector2 HIDING_SPOT_BUSH_G2 = {160, 633};
+const Vector2 HIDING_SPOT_BUSH_G3 = {1101, 631};
+const Vector2 HIDING_SPOT_BUSH_G4 = {1152, 259};
+const Vector2 HIDING_SPOT_BUSH_B1 = {98, 443};
+const Vector2 HIDING_SPOT_BUSH_B2 = {420, 71};
+const Vector2 HIDING_SPOT_BUSH_B3 = {335, 194};
+const Vector2 HIDING_SPOT_TABLE_1 = {443, 489};
+const Vector2 HIDING_SPOT_TABLE_2 = {750, 208};
+const Vector2 HIDING_SPOT_WASHER = {404, 593};
+const Vector2 HIDING_SPOT_BOX = {832, 133};
+const Vector2 HIDING_SPOT_COUCH_1 = {689, 580};
+const Vector2 HIDING_SPOT_COUCH_2 = {759, 550}; 
+
+
+// Game Time
 const float HIDING_PHASE_DURATION = 10.0f; // seconds for hiders to hide
 const float SEEKING_PHASE_DURATION = 120.0f; // 2 minutes for seeker
 

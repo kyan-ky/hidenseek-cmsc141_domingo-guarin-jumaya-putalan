@@ -349,6 +349,24 @@ void GameManager::DrawInGame() {
     for (auto& hider : hiders) {
         hider.Draw();
     }
+  
+    // 1. Draw game elements with camera
+    BeginMode2D(camera);
+        // Draw base map and walls first
+        gameMap.DrawBaseAndWalls();
+        
+        // Draw hiders before the object texture so they appear behind hiding spots
+        for (auto& hider : hiders) {
+            if (!hider.isTagged) {
+                hider.Draw();
+            }
+        }
+        
+        // Draw object texture (hiding spots) on top of hiders, with transparency based on player position
+        gameMap.DrawObjects(player.position);
+        
+        // Draw player last so it's always on top
+        player.Draw();
     EndMode2D();
 
 
@@ -366,7 +384,7 @@ void GameManager::DrawInGame() {
         
         // Cut out the vision circle using BLEND_SUBTRACT_COLORS
         BeginBlendMode(BLEND_SUBTRACT_COLORS);
-            DrawCircleV(screenPos, radius - 140, WHITE);  // Use WHITE to cut out the circle
+            DrawCircleV(screenPos, radius - 200, WHITE);  // Use WHITE to cut out the circle
         EndBlendMode();
     EndTextureMode();
 
