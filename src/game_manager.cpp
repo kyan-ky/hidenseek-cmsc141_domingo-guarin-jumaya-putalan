@@ -26,6 +26,8 @@ GameManager::GameManager() : currentScreen(GameScreen::MAIN_MENU), currentPhase(
     // Initialize music
     hidingPhaseMusic = {0};
     seekingPhaseMusic = {0};
+    victorySound = {0};
+    gameOverSound = {0};
 
     // Load phase music
     if (FileExists("countdown.mp3")) {
@@ -36,6 +38,15 @@ GameManager::GameManager() : currentScreen(GameScreen::MAIN_MENU), currentPhase(
         seekingPhaseMusic = LoadMusicStream("ingame.mp3");
         SetMusicVolume(seekingPhaseMusic, 0.5f);
     }
+    // Load sound effects
+    if (FileExists("victory.mp3")) {
+        victorySound = LoadSound("victory.mp3");
+        SetSoundVolume(victorySound, 0.7f);
+    }
+    if (FileExists("game_over.mp3")) {
+        gameOverSound = LoadSound("game_over.mp3");
+        SetSoundVolume(gameOverSound, 0.7f);
+    }
 }
 
 GameManager::~GameManager() {
@@ -44,6 +55,8 @@ GameManager::~GameManager() {
     UnloadRenderTexture(visionOverlay);
     if (hidingPhaseMusic.stream.buffer != NULL) UnloadMusicStream(hidingPhaseMusic);
     if (seekingPhaseMusic.stream.buffer != NULL) UnloadMusicStream(seekingPhaseMusic);
+    if (victorySound.frameCount > 0) UnloadSound(victorySound);
+    if (gameOverSound.frameCount > 0) UnloadSound(gameOverSound);
 }
 
 void GameManager::ResetGameValues() {
@@ -103,16 +116,17 @@ void GameManager::ResetGameValues() {
                 positionOk = false;
                 continue;
             }
+
             // Check distance from already assigned hider starting positions
-            for(size_t j=0; j < startingPositions.size(); ++j) {
-                if (Vector2DistanceSqr(pos, startingPositions[j]) < (HIDER_RADIUS * 4) * (HIDER_RADIUS * 4) ) {
+            for(const auto& existingPos : startingPositions) {
+                if (Vector2DistanceSqr(pos, existingPos) < (HIDER_RADIUS * 4) * (HIDER_RADIUS * 4)) {
                     positionOk = false;
                     break;
                 }
             }
             if (!positionOk) continue;
 
-            // *** NEW: Check validity against map obstacles ***
+            // Check validity against map obstacles
             if (!gameMap.IsPositionValid(pos, HIDER_RADIUS)) {
                 positionOk = false;
             }
@@ -220,9 +234,34 @@ void GameManager::Update() {
 
     // Handle game restart from any screen that can trigger it
     if (this->restartGameFlag) {
+        // Stop any playing game over or victory sounds
+        if (gameOverSound.frameCount > 0) {
+            StopSound(gameOverSound);
+        }
+        if (victorySound.frameCount > 0) {
+            StopSound(victorySound);
+        }
         InitGame();
         this->restartGameFlag = false; // CRITICAL: Reset the flag after use
         this->currentScreen = GameScreen::IN_GAME; // Ensure we go to game screen
+    }
+
+    // Stop all sounds when transitioning to main menu
+    if (this->currentScreen == GameScreen::MAIN_MENU) {
+        // Stop phase music
+        if (hidingPhaseMusic.stream.buffer != NULL) {
+            StopMusicStream(hidingPhaseMusic);
+        }
+        if (seekingPhaseMusic.stream.buffer != NULL) {
+            StopMusicStream(seekingPhaseMusic);
+        }
+        // Stop game over and victory sounds
+        if (gameOverSound.frameCount > 0) {
+            StopSound(gameOverSound);
+        }
+        if (victorySound.frameCount > 0) {
+            StopSound(victorySound);
+        }
     }
 }
 
@@ -296,11 +335,17 @@ void GameManager::UpdateInGame() {
             }
         }
 
-        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsKeyPressed(KEY_ENTER)) {
+            bool taggedAnyHider = false;
             for (auto& hider : hiders) {
                 if (player.CanTag(hider)) {
                     hider.isTagged = true;
+                    taggedAnyHider = true;
                 }
+            }
+            // Play tag sound if we successfully tagged at least one hider
+            if (taggedAnyHider && player.tagSound.frameCount > 0) {
+                PlaySound(player.tagSound);
             }
         }
         
@@ -320,16 +365,40 @@ void GameManager::CheckWinLossConditions(bool playerGotTagged) {
             playerWon = true;
             lastGameTime = SEEKING_PHASE_DURATION - gameTimer;
             currentScreen = GameScreen::GAME_OVER;
+            // Stop current music
+            if (seekingPhaseMusic.stream.buffer != NULL) {
+                StopMusicStream(seekingPhaseMusic);
+            }
+            // Play victory sound
+            if (victorySound.frameCount > 0) {
+                PlaySound(victorySound);
+            }
             // TraceLog(LOG_INFO, "GAME: Player WON. All hiders tagged."); // DEBUG
         } else if (gameTimer <= 0) {
             playerWon = false;
             lastGameTime = 0; 
             currentScreen = GameScreen::GAME_OVER;
+            // Stop current music
+            if (seekingPhaseMusic.stream.buffer != NULL) {
+                StopMusicStream(seekingPhaseMusic);
+            }
+            // Play game over sound
+            if (gameOverSound.frameCount > 0) {
+                PlaySound(gameOverSound);
+            }
             // TraceLog(LOG_INFO, "GAME: Player LOST. Timer expired."); // DEBUG
         } else if (playerGotTagged) {
             playerWon = false;
             lastGameTime = SEEKING_PHASE_DURATION - gameTimer;
             currentScreen = GameScreen::GAME_OVER;
+            // Stop current music
+            if (seekingPhaseMusic.stream.buffer != NULL) {
+                StopMusicStream(seekingPhaseMusic);
+            }
+            // Play game over sound
+            if (gameOverSound.frameCount > 0) {
+                PlaySound(gameOverSound);
+            }
             // TraceLog(LOG_INFO, "GAME: Player LOST. Tagged by hider."); // DEBUG
         }
     }

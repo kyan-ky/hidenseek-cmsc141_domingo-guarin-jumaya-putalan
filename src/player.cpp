@@ -184,7 +184,7 @@ void Player::Draw() {
     
     // Draw Player
     Texture2D currentTexture = texture;
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && tagTexture.id > 0) {
+    if ((IsMouseButtonDown(MOUSE_LEFT_BUTTON) || IsKeyDown(KEY_ENTER)) && tagTexture.id > 0) {
         currentTexture = tagTexture;
     }
 
@@ -239,10 +239,6 @@ bool Player::CanTag(const Hider& hider) const {
     if (distanceToHider <= TAG_RANGE) {
         // Then check if the hider is within the player's vision cone
         if (IsInVisionCone(hider.position, PLAYER_VISION_CONE_ANGLE, PLAYER_VISION_RADIUS)) {
-            // Play tag sound if available
-            if (tagSound.frameCount > 0) {
-                PlaySound(tagSound);
-            }
             return true;
         }
     }
