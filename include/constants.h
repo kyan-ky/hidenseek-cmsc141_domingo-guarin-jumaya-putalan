@@ -10,13 +10,13 @@ const int SCREEN_HEIGHT = 720;
 inline const char* GAME_TITLE = "State of Fear: Ryan's Revenge";
 
 // Player Constants
-const float PLAYER_SPEED = 200.0f;
-const float PLAYER_SPRINT_SPEED = 350.0f;
+const float PLAYER_SPEED = 120.0f;
+const float PLAYER_SPRINT_SPEED = 240.0f;
 const float PLAYER_RADIUS = 15.0f;
 const float PLAYER_VISION_CONE_ANGLE = 60.0f; // degrees
 const float PLAYER_VISION_RADIUS = 200.0f;
 const float SPRINT_MAX = 100.0f;
-const float SPRINT_DEPLETE_RATE = 30.0f; // per second
+const float SPRINT_DEPLETE_RATE = 50.0f; // per second
 const float SPRINT_REGEN_RATE = 15.0f;   // per second
 const float TAG_RANGE = 50.0f; // How close player needs to be within cone to tag
 
