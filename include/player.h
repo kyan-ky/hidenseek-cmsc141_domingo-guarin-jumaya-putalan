@@ -4,6 +4,8 @@
 #include "constants.h"
 #include <vector> // For vision cone points
 
+class GameManager; // Forward declaration
+
 class Player {
 public:
     Vector2 position;
@@ -18,6 +20,7 @@ public:
     bool showAlert;
     std::vector<Vector2> visionConePoints;
     bool isTagged;
+    GameManager* gameManager; // Reference to game manager
 
     Player();
     void Init(Vector2 startPos);

@@ -8,6 +8,7 @@
 // Forward declarations
 class Player;
 class Map;
+class GameManager; // Forward declaration for GameManager
 
 enum class HiderHidingFSMState {
     SCOUTING,
@@ -33,6 +34,7 @@ public:
     Texture2D texture;
     Texture2D attackTexture; // New texture for attacking state
     int hiderId; // ID to identify which hider this is (0-4)
+    GameManager* gameManager; // Pointer to game manager for sound access
 
     HiderHidingFSMState hidingState;
     HiderSeekingFSMState seekingState;

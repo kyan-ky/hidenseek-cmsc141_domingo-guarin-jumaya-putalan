@@ -50,81 +50,23 @@ void Map::Load() {
 void Map::InitHidingSpots() {
     hidingSpots.clear();
     
-    if (IsPositionValid(HIDING_SPOT_BUSH_G1, 0)) {
-        hidingSpots.push_back(HIDING_SPOT_BUSH_G1);
-        TraceLog(LOG_INFO, "MAP: Added BUSH_G1 at (%.1f, %.1f)", HIDING_SPOT_BUSH_G1.x, HIDING_SPOT_BUSH_G1.y);
-    }
-    if (IsPositionValid(HIDING_SPOT_BUSH_G2, 0)) {
-        hidingSpots.push_back(HIDING_SPOT_BUSH_G2);
-        TraceLog(LOG_INFO, "MAP: Added BUSH_G2 at (%.1f, %.1f)", HIDING_SPOT_BUSH_G2.x, HIDING_SPOT_BUSH_G2.y);
-    }
-    if (IsPositionValid(HIDING_SPOT_BUSH_G3, 0)) {
-        hidingSpots.push_back(HIDING_SPOT_BUSH_G3);
-        TraceLog(LOG_INFO, "MAP: Added BUSH_G3 at (%.1f, %.1f)", HIDING_SPOT_BUSH_G3.x, HIDING_SPOT_BUSH_G3.y);
-    }
-    if (IsPositionValid(HIDING_SPOT_BUSH_G4, 0)) {
-        hidingSpots.push_back(HIDING_SPOT_BUSH_G4);
-        TraceLog(LOG_INFO, "MAP: Added BUSH_G4 at (%.1f, %.1f)", HIDING_SPOT_BUSH_G4.x, HIDING_SPOT_BUSH_G4.y);
-    }
-    if (IsPositionValid(HIDING_SPOT_BUSH_G5, 0)) {
-        hidingSpots.push_back(HIDING_SPOT_BUSH_G5);
-        TraceLog(LOG_INFO, "MAP: Added BUSH_G5 at (%.1f, %.1f)", HIDING_SPOT_BUSH_G5.x, HIDING_SPOT_BUSH_G5.y);
-    }
-    if (IsPositionValid(HIDING_SPOT_BUSH_B1, 0)) {
-        hidingSpots.push_back(HIDING_SPOT_BUSH_B1);
-        TraceLog(LOG_INFO, "MAP: Added BUSH_B1 at (%.1f, %.1f)", HIDING_SPOT_BUSH_B1.x, HIDING_SPOT_BUSH_B1.y);
-    }
-    if (IsPositionValid(HIDING_SPOT_BUSH_B2, 0)) {
-        hidingSpots.push_back(HIDING_SPOT_BUSH_B2);
-        TraceLog(LOG_INFO, "MAP: Added BUSH_B2 at (%.1f, %.1f)", HIDING_SPOT_BUSH_B2.x, HIDING_SPOT_BUSH_B2.y);
-    }
-    if (IsPositionValid(HIDING_SPOT_BUSH_B3, 0)) {
-        hidingSpots.push_back(HIDING_SPOT_BUSH_B3);
-        TraceLog(LOG_INFO, "MAP: Added BUSH_B3 at (%.1f, %.1f)", HIDING_SPOT_BUSH_B3.x, HIDING_SPOT_BUSH_B3.y);
-    }
-    if (IsPositionValid(HIDING_SPOT_BUSH_B4, 0)) {
-        hidingSpots.push_back(HIDING_SPOT_BUSH_B4);
-        TraceLog(LOG_INFO, "MAP: Added BUSH_B4 at (%.1f, %.1f)", HIDING_SPOT_BUSH_B4.x, HIDING_SPOT_BUSH_B4.y);
-    }
-    if (IsPositionValid(HIDING_SPOT_TABLE_1, 0)) {
-        hidingSpots.push_back(HIDING_SPOT_TABLE_1);
-        TraceLog(LOG_INFO, "MAP: Added TABLE_1 at (%.1f, %.1f)", HIDING_SPOT_TABLE_1.x, HIDING_SPOT_TABLE_1.y);
-    }
-    if (IsPositionValid(HIDING_SPOT_TABLE_2, 0)) {
-        hidingSpots.push_back(HIDING_SPOT_TABLE_2);
-        TraceLog(LOG_INFO, "MAP: Added TABLE_2 at (%.1f, %.1f)", HIDING_SPOT_TABLE_2.x, HIDING_SPOT_TABLE_2.y);
-    }
-    if (IsPositionValid(HIDING_SPOT_WASHER, 0)) {
-        hidingSpots.push_back(HIDING_SPOT_WASHER);
-        TraceLog(LOG_INFO, "MAP: Added WASHER at (%.1f, %.1f)", HIDING_SPOT_WASHER.x, HIDING_SPOT_WASHER.y);
-    }
-    if (IsPositionValid(HIDING_SPOT_BOX, 0)) {
-        hidingSpots.push_back(HIDING_SPOT_BOX);
-        TraceLog(LOG_INFO, "MAP: Added BOX at (%.1f, %.1f)", HIDING_SPOT_BOX.x, HIDING_SPOT_BOX.y);
-    }
-    if (IsPositionValid(HIDING_SPOT_COUCH_1, 0)) {
-        hidingSpots.push_back(HIDING_SPOT_COUCH_1);
-        TraceLog(LOG_INFO, "MAP: Added COUCH_1 at (%.1f, %.1f)", HIDING_SPOT_COUCH_1.x, HIDING_SPOT_COUCH_1.y);
-    }
-    if (IsPositionValid(HIDING_SPOT_COUCH_2, 0)) {
-        hidingSpots.push_back(HIDING_SPOT_COUCH_2);
-        TraceLog(LOG_INFO, "MAP: Added COUCH_2 at (%.1f, %.1f)", HIDING_SPOT_COUCH_2.x, HIDING_SPOT_COUCH_2.y);
-    }
-    if (IsPositionValid(HIDING_SPOT_COUCH_3, 0)) {
-        hidingSpots.push_back(HIDING_SPOT_COUCH_3);
-        TraceLog(LOG_INFO, "MAP: Added COUCH_3 at (%.1f, %.1f)", HIDING_SPOT_COUCH_3.x, HIDING_SPOT_COUCH_3.y);
-    }
-    if (IsPositionValid(HIDING_SPOT_PLANT, 0)) {
-        hidingSpots.push_back(HIDING_SPOT_PLANT);
-        TraceLog(LOG_INFO, "MAP: Added PLANT at (%.1f, %.1f)", HIDING_SPOT_PLANT.x, HIDING_SPOT_PLANT.y);
-    }
-
-    // Warning if not enough hiding spots are defined for the number of hiders
-    if (hidingSpots.size() < NUM_HIDERS) {
-        TraceLog(LOG_WARNING, "MAP: Number of defined valid hiding spots (%d) is less than the number of hiders (%d). Hiders may spawn in sub-optimal or identical locations.", hidingSpots.size(), NUM_HIDERS);
-    } else {
-        TraceLog(LOG_INFO, "MAP: Successfully initialized %d hiding spots", hidingSpots.size());
-    }
+    if (IsPositionValid(HIDING_SPOT_BUSH_G1, 0)) hidingSpots.push_back(HIDING_SPOT_BUSH_G1);
+    if (IsPositionValid(HIDING_SPOT_BUSH_G2, 0)) hidingSpots.push_back(HIDING_SPOT_BUSH_G2);
+    if (IsPositionValid(HIDING_SPOT_BUSH_G3, 0)) hidingSpots.push_back(HIDING_SPOT_BUSH_G3);
+    if (IsPositionValid(HIDING_SPOT_BUSH_G4, 0)) hidingSpots.push_back(HIDING_SPOT_BUSH_G4);
+    if (IsPositionValid(HIDING_SPOT_BUSH_G5, 0)) hidingSpots.push_back(HIDING_SPOT_BUSH_G5);
+    if (IsPositionValid(HIDING_SPOT_BUSH_B1, 0)) hidingSpots.push_back(HIDING_SPOT_BUSH_B1);
+    if (IsPositionValid(HIDING_SPOT_BUSH_B2, 0)) hidingSpots.push_back(HIDING_SPOT_BUSH_B2);
+    if (IsPositionValid(HIDING_SPOT_BUSH_B3, 0)) hidingSpots.push_back(HIDING_SPOT_BUSH_B3);
+    if (IsPositionValid(HIDING_SPOT_BUSH_B4, 0)) hidingSpots.push_back(HIDING_SPOT_BUSH_B4);
+    if (IsPositionValid(HIDING_SPOT_TABLE_1, 0)) hidingSpots.push_back(HIDING_SPOT_TABLE_1);
+    if (IsPositionValid(HIDING_SPOT_TABLE_2, 0)) hidingSpots.push_back(HIDING_SPOT_TABLE_2);
+    if (IsPositionValid(HIDING_SPOT_WASHER, 0)) hidingSpots.push_back(HIDING_SPOT_WASHER);
+    if (IsPositionValid(HIDING_SPOT_BOX, 0)) hidingSpots.push_back(HIDING_SPOT_BOX);
+    if (IsPositionValid(HIDING_SPOT_COUCH_1, 0)) hidingSpots.push_back(HIDING_SPOT_COUCH_1);
+    if (IsPositionValid(HIDING_SPOT_COUCH_2, 0)) hidingSpots.push_back(HIDING_SPOT_COUCH_2);
+    if (IsPositionValid(HIDING_SPOT_COUCH_3, 0)) hidingSpots.push_back(HIDING_SPOT_COUCH_3);
+    if (IsPositionValid(HIDING_SPOT_PLANT, 0)) hidingSpots.push_back(HIDING_SPOT_PLANT);
 }
 
 Vector2 Map::GetRandomHidingSpot() const {
