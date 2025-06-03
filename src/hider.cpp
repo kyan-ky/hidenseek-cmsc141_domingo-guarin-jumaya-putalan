@@ -1,6 +1,7 @@
 #include "hider.h"
 #include "player.h"
 #include "map.h"
+#include "game_manager.h"
 #include "raymath.h"
 #include <cstdlib> // For rand
 #include <cmath>   // For atan2f, fabsf
@@ -9,7 +10,8 @@
 Hider::Hider() : position({0, 0}), rotation(0.0f), speed(HIDER_SPEED), isTagged(false),
                  hidingState(HiderHidingFSMState::SCOUTING),
                  seekingState(HiderSeekingFSMState::IDLING),
-                 attackCooldownTimer(0.0f), texture{0}, attackTexture{0}, hiderId(0) { 
+                 attackCooldownTimer(0.0f), texture{0}, attackTexture{0}, hiderId(0),
+                 gameManager(nullptr) { 
     // Textures will be loaded in Init
 }
 
@@ -21,6 +23,7 @@ void Hider::Init(Vector2 startPos, const Map& gameMap, int id) {
     attackCooldownTimer = 0.0f;
     rotation = (float)(rand() % 360); // Random initial rotation
     hiderId = id;
+    gameManager = nullptr; // Will be set by GameManager when needed
 
     // Load appropriate textures based on hider ID
     char standTextureName[32];
@@ -34,28 +37,12 @@ void Hider::Init(Vector2 startPos, const Map& gameMap, int id) {
         snprintf(tagTextureName, sizeof(tagTextureName), "hider%d_tag.png", hiderId);
     }
 
-    TraceLog(LOG_INFO, "HIDER_INIT: Loading %s for hider %d", standTextureName, hiderId);
     if (FileExists(standTextureName)) { 
         this->texture = LoadTexture(standTextureName);
-        if (this->texture.id == 0) {
-            TraceLog(LOG_ERROR, "HIDER_INIT: FAILED to load %s texture.", standTextureName);
-        } else {
-            TraceLog(LOG_INFO, "HIDER_INIT: %s loaded successfully. ID: %d", standTextureName, this->texture.id);
-        }
-    } else {
-        TraceLog(LOG_WARNING, "HIDER_INIT: Sprite '%s' not found in resources/.", standTextureName);
     }
 
-    TraceLog(LOG_INFO, "HIDER_INIT: Loading %s for hider %d", tagTextureName, hiderId);
     if (FileExists(tagTextureName)) { 
         this->attackTexture = LoadTexture(tagTextureName);
-        if (this->attackTexture.id == 0) {
-            TraceLog(LOG_ERROR, "HIDER_INIT: FAILED to load %s texture.", tagTextureName);
-        } else {
-            TraceLog(LOG_INFO, "HIDER_INIT: %s loaded successfully. ID: %d", tagTextureName, this->attackTexture.id);
-        }
-    } else {
-        TraceLog(LOG_WARNING, "HIDER_INIT: Sprite '%s' not found in resources/.", tagTextureName);
     }
 }
 
@@ -113,15 +100,15 @@ void Hider::UpdateHidingPhase(float deltaTime, const Map& gameMap, const Player&
 }
 
 bool Hider::IsSpotTaken(Vector2 spot, const std::vector<Hider>& otherHiders, const Player& player) {
-    // Minimum distance between hiders (increased to prevent them from hiding too close to each other)
-    float minDistance = HIDER_RADIUS * 10; // Minimum distance between hiders
+    // Increase minimum distance between hiders significantly
+    float minDistance = HIDER_RADIUS * 15; // Increased from 10 to 15
     
-    // Check distance from player
-    if (Vector2DistanceSqr(spot, player.position) < (PLAYER_RADIUS + HIDER_RADIUS + 50) * (PLAYER_RADIUS + HIDER_RADIUS + 50)) {
+    // Check distance from player with increased safety margin
+    if (Vector2DistanceSqr(spot, player.position) < (PLAYER_RADIUS + HIDER_RADIUS + 100) * (PLAYER_RADIUS + HIDER_RADIUS + 100)) {
         return true;
     }
     
-    // Check distance from other hiders
+    // Check distance from other hiders with improved collision detection
     for (const auto& other : otherHiders) {
         if (&other == this) continue; // Don't check against self
         
@@ -133,6 +120,15 @@ bool Hider::IsSpotTaken(Vector2 spot, const std::vector<Hider>& otherHiders, con
         // Check if other hider is already at/near this spot
         if (Vector2DistanceSqr(spot, other.position) < minDistance * minDistance) {
             return true;
+        }
+
+        // Additional check for hiders that are moving
+        if (other.hidingState == HiderHidingFSMState::MOVING_TO_HIDING_SPOT) {
+            Vector2 otherDirection = Vector2Normalize(Vector2Subtract(other.targetHidingSpot, other.position));
+            Vector2 projectedPosition = Vector2Add(other.position, Vector2Scale(otherDirection, HIDER_RADIUS * 10));
+            if (Vector2DistanceSqr(spot, projectedPosition) < minDistance * minDistance) {
+                return true;
+            }
         }
     }
     return false;
@@ -472,143 +468,84 @@ void Hider::Evade(float deltaTime, const Player& player, const Map& gameMap) {
         return;
     }
 
-    // Check for nearby hiding spots
-    const std::vector<Vector2>& availableSpots = gameMap.GetHidingSpots();
-    float minDistanceToSpot = HIDER_VISION_RADIUS;
-    Vector2 closestSpot = {0, 0};
-    bool foundSpot = false;
-    float bestScore = 0.0f;
-
-    // First, check if player is near any hiding spot
-    bool playerNearHidingSpot = false;
-    Vector2 playerNearSpot = {0, 0};
-    for (const auto& spot : availableSpots) {
-        float distanceToPlayer = Vector2Distance(spot, player.position);
-        if (distanceToPlayer < HIDER_VISION_RADIUS) {
-            playerNearHidingSpot = true;
-            playerNearSpot = spot;
+    // Each hider has a unique evasion pattern based on their ID
+    float evasionAngle = 0.0f;
+    float evasionSpeed = speed;
+    
+    // Use hiderId to create unique behavior patterns
+    switch (hiderId % 4) {
+        case 0: // Zigzag pattern
+            evasionAngle = (float)((int)(GetTime() * 2) % 2) * 45.0f - 22.5f;
+            evasionSpeed = speed * 1.2f;
             break;
-        }
+        case 1: // Circular pattern
+            evasionAngle = GetTime() * 90.0f;
+            evasionSpeed = speed * 0.9f;
+            break;
+        case 2: // Sharp turns
+            evasionAngle = (float)((int)(GetTime() * 3) % 2) * 90.0f - 45.0f;
+            evasionSpeed = speed * 1.1f;
+            break;
+        case 3: // Erratic movement
+            evasionAngle = (float)(rand() % 360);
+            evasionSpeed = speed * (0.8f + (float)(rand() % 40) / 100.0f);
+            break;
     }
 
-    // Find a new hiding spot, avoiding the one near the player
-    for (const auto& spot : availableSpots) {
-        float distanceToSpot = Vector2Distance(position, spot);
-        float distanceToPlayer = Vector2Distance(spot, player.position);
+    // Calculate base direction away from player
+    Vector2 directionAwayFromPlayer = Vector2Normalize(Vector2Subtract(position, player.position));
+    
+    // Apply the unique evasion pattern
+    Vector2 evasionDirection = Vector2Rotate(directionAwayFromPlayer, evasionAngle * DEG2RAD);
+    
+    // Add some randomness to prevent synchronized movement
+    float randomVariation = (float)(rand() % 20 - 10) / 100.0f;
+    evasionDirection = Vector2Rotate(evasionDirection, randomVariation * DEG2RAD);
+    
+    // Try to move in the calculated direction
+    Vector2 newPos = Vector2Add(position, Vector2Scale(evasionDirection, evasionSpeed * deltaTime));
+    
+    // If the new position is invalid, try alternative directions
+    if (!gameMap.IsPositionValid(newPos, HIDER_RADIUS)) {
+        float alternativeAngles[] = {30.0f, -30.0f, 60.0f, -60.0f, 90.0f, -90.0f};
+        bool foundValidMove = false;
         
-        // Skip spots that are too close to the player
-        if (distanceToPlayer < HIDER_VISION_RADIUS) {
-            continue;
-        }
-        
-        // Calculate a score for this spot based on distance to player and distance to hider
-        float score = (distanceToPlayer / HIDER_VISION_RADIUS) - (distanceToSpot / HIDER_VISION_RADIUS);
-        
-        // Only consider spots that are valid and have a good score
-        if (score > bestScore && gameMap.IsPositionValid(spot, HIDER_RADIUS)) {
-            bestScore = score;
-            closestSpot = spot;
-            foundSpot = true;
-        }
-    }
-
-    // If we found a good hiding spot, move towards it
-    if (foundSpot) {
-        Vector2 directionToSpot = Vector2Normalize(Vector2Subtract(closestSpot, position));
-        Vector2 newPos = Vector2Add(position, Vector2Scale(directionToSpot, speed * 1.2f * deltaTime));
-        
-        if (gameMap.IsPositionValid(newPos, HIDER_RADIUS)) {
-            position = newPos;
-            rotation = atan2f(directionToSpot.y, directionToSpot.x) * RAD2DEG;
+        for (float angle : alternativeAngles) {
+            Vector2 alternativeDir = Vector2Rotate(evasionDirection, angle * DEG2RAD);
+            newPos = Vector2Add(position, Vector2Scale(alternativeDir, evasionSpeed * deltaTime));
             
-            // If we're close enough to the spot, start hiding
-            if (Vector2Distance(position, closestSpot) < HIDER_RADIUS * 2) {
-                position = closestSpot; // Snap to spot
-                seekingState = HiderSeekingFSMState::IDLING;
+            if (gameMap.IsPositionValid(newPos, HIDER_RADIUS)) {
+                evasionDirection = alternativeDir;
+                foundValidMove = true;
+                break;
+            }
+        }
+        
+        if (!foundValidMove) {
+            // If no valid move found, try moving in the opposite direction
+            Vector2 oppositeDir = Vector2Scale(evasionDirection, -1.0f);
+            newPos = Vector2Add(position, Vector2Scale(oppositeDir, evasionSpeed * 0.8f * deltaTime));
+            
+            if (gameMap.IsPositionValid(newPos, HIDER_RADIUS)) {
+                evasionDirection = oppositeDir;
+            } else {
+                // If still stuck, switch to attacking
+                seekingState = HiderSeekingFSMState::ATTACKING;
                 return;
             }
-        } else {
-            // If we can't move directly to the spot, try to find a path around obstacles
-            float angles[] = {45.0f, -45.0f, 90.0f, -90.0f};
-            bool foundPath = false;
-            
-            for (float angle : angles) {
-                Vector2 rotatedDir = Vector2Rotate(directionToSpot, angle * DEG2RAD);
-                newPos = Vector2Add(position, Vector2Scale(rotatedDir, speed * 1.2f * deltaTime));
-                
-                if (gameMap.IsPositionValid(newPos, HIDER_RADIUS)) {
-                    position = newPos;
-                    rotation = atan2f(rotatedDir.y, rotatedDir.x) * RAD2DEG;
-                    foundPath = true;
-                    break;
-                }
-            }
-            
-            if (!foundPath) {
-                // If we can't find a path to the spot, continue with normal evasion
-                foundSpot = false;
-            }
         }
     }
 
-    // If no good spot found or we can't reach it, continue normal evasion
-    if (!foundSpot) {
-        // Calculate direction away from player
-        Vector2 directionAwayFromPlayer = Vector2Normalize(Vector2Subtract(position, player.position));
-        
-        // Try to move away from player at increased speed
-        Vector2 newPos = Vector2Add(position, Vector2Scale(directionAwayFromPlayer, speed * 1.2f * deltaTime));
-
-        // If we can't move directly away, try multiple angles
-        if (!gameMap.IsPositionValid(newPos, HIDER_RADIUS)) {
-            // Try angles in both directions, starting with smaller angles
-            float angles[] = {45.0f, -45.0f, 90.0f, -90.0f, 135.0f, -135.0f};
-            bool foundValidMove = false;
-            
-            for (float angle : angles) {
-                Vector2 rotatedDir = Vector2Rotate(directionAwayFromPlayer, angle * DEG2RAD);
-                newPos = Vector2Add(position, Vector2Scale(rotatedDir, speed * 1.2f * deltaTime));
-                
-                if (gameMap.IsPositionValid(newPos, HIDER_RADIUS)) {
-                    foundValidMove = true;
-                    directionAwayFromPlayer = rotatedDir; // Update direction for rotation
-                    break;
-                }
-            }
-            
-            // If no valid move found, try to move in the opposite direction of the player
-            if (!foundValidMove) {
-                Vector2 oppositeDir = Vector2Scale(directionAwayFromPlayer, -1.0f);
-                newPos = Vector2Add(position, Vector2Scale(oppositeDir, speed * 0.8f * deltaTime));
-                
-                if (gameMap.IsPositionValid(newPos, HIDER_RADIUS)) {
-                    directionAwayFromPlayer = oppositeDir;
-                } else {
-                    // If still stuck, switch to attacking
-                    seekingState = HiderSeekingFSMState::ATTACKING;
-                    return;
-                }
-            }
-        }
-
-        // If we found a valid position, move there
-        if (gameMap.IsPositionValid(newPos, HIDER_RADIUS)) {
-            position = newPos;
-            // Update rotation to face away from player
-            rotation = atan2f(directionAwayFromPlayer.y, directionAwayFromPlayer.x) * RAD2DEG;
-        } else {
-            // If we can't move, switch to attacking
-            seekingState = HiderSeekingFSMState::ATTACKING;
-            return;
-        }
+    // Update position and rotation
+    if (gameMap.IsPositionValid(newPos, HIDER_RADIUS)) {
+        position = newPos;
+        rotation = atan2f(evasionDirection.y, evasionDirection.x) * RAD2DEG;
     }
 
-    // Only return to idle if we're far enough from the player and not moving to a hiding spot
-    if (!foundSpot) {
-        float distanceToPlayer = Vector2Distance(position, player.position);
-        if (distanceToPlayer > HIDER_VISION_RADIUS * 1.5f) {
-            seekingState = HiderSeekingFSMState::IDLING;
-        }
+    // Check if we should return to idle state
+    float distanceToPlayer = Vector2Distance(position, player.position);
+    if (distanceToPlayer > HIDER_VISION_RADIUS * 1.5f) {
+        seekingState = HiderSeekingFSMState::IDLING;
     }
 }
 
@@ -641,9 +578,7 @@ void Hider::Draw() {
         // Draw vision cone for debugging
         Vector2 forward = GetForwardVector();
         DrawLineV(position, Vector2Add(position, Vector2Scale(forward, HIDER_RADIUS)), BLACK);
-        if (currentTexture.id == 0) { TraceLog(LOG_DEBUG, "HIDER_DRAW: Texture ID is 0, drawing placeholder.");}
     }
-    // ... (optional vision cone) ...
 }
 
 bool Hider::CanAttack(const Player& player) const {
@@ -688,9 +623,13 @@ void Hider::AttemptTag(const Map& gameMap, Player& player) {
     // Check for successful tag
     if (distanceToPlayer <= collisionDistance) {
         // Tag successful
-        TraceLog(LOG_INFO, "HIDER: Tag successful! Distance: %.2f", distanceToPlayer);
         player.SetTagged(true);
         timeSinceLastTag = 0.0f;
         seekingState = HiderSeekingFSMState::IDLING;
+        
+        // Play tag sound through game manager
+        if (player.gameManager->tagSound.frameCount > 0) {
+            PlaySound(player.gameManager->tagSound);
+        }
     }
 }

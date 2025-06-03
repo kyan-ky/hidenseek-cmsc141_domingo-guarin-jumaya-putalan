@@ -28,6 +28,7 @@ GameManager::GameManager() : currentScreen(GameScreen::MAIN_MENU), currentPhase(
     seekingPhaseMusic = {0};
     victorySound = {0};
     gameOverSound = {0};
+    tagSound = {0};
 
     // Load phase music
     if (FileExists("countdown.mp3")) {
@@ -47,6 +48,10 @@ GameManager::GameManager() : currentScreen(GameScreen::MAIN_MENU), currentPhase(
         gameOverSound = LoadSound("game_over.mp3");
         SetSoundVolume(gameOverSound, 0.7f);
     }
+    if (FileExists("tag.wav")) {
+        tagSound = LoadSound("tag.wav");
+        SetSoundVolume(tagSound, 0.5f);
+    }
 }
 
 GameManager::~GameManager() {
@@ -57,6 +62,7 @@ GameManager::~GameManager() {
     if (seekingPhaseMusic.stream.buffer != NULL) UnloadMusicStream(seekingPhaseMusic);
     if (victorySound.frameCount > 0) UnloadSound(victorySound);
     if (gameOverSound.frameCount > 0) UnloadSound(gameOverSound);
+    if (tagSound.frameCount > 0) UnloadSound(tagSound);
 }
 
 void GameManager::ResetGameValues() {
@@ -91,12 +97,10 @@ void GameManager::ResetGameValues() {
 
     // Fallback if no valid corner found (shouldn't happen with reasonable maps)
     if (!spawnPosFound) {
-         TraceLog(LOG_WARNING, "GAME: Could not find a valid corner spawn point after %d attempts. Spawning at default top-left.", maxAttempts);
-         playerSpawnPos = {padding, padding}; // Default to top-left if no valid corner found
-         // Note: This default position might also be invalid if the entire top-left is blocked
-         // A more robust fallback might be needed for very complex maps.
+        playerSpawnPos = {padding, padding}; // Default to top-left if no valid corner found
     }
 
+    player.gameManager = this; // Set the game manager pointer
     player.Init(playerSpawnPos); // Initialize player at the selected valid position
 
     hiders.assign(NUM_HIDERS, Hider());
@@ -134,7 +138,6 @@ void GameManager::ResetGameValues() {
         } while(!positionOk && attempts < maxSpawnAttempts);
 
         if (attempts >= maxSpawnAttempts) {
-            TraceLog(LOG_WARNING, "GAME: Could not find a valid spawn position for hider %d after %d attempts.", i, maxSpawnAttempts);
             // Fallback: place at a default spot or allow potentially invalid spot (depending on desired game behavior)
             // For now, we'll just use the last attempted position, which might be invalid.
             // A better approach might be to place them near the player's start or a known valid spot.
@@ -142,6 +145,7 @@ void GameManager::ResetGameValues() {
 
         startingPositions.push_back(pos);
         hiders[i].Init(pos, gameMap, i); // Pass the hider ID (0-4) to Init
+        hiders[i].gameManager = this; // Set the game manager pointer
         // Explicitly ensure these are reset if Init doesn't cover them fully for a *new game* scenario
         hiders[i].isTagged = false; 
         hiders[i].hidingState = HiderHidingFSMState::SCOUTING; 
@@ -157,7 +161,6 @@ void GameManager::ResetGameValues() {
 }
 
 void GameManager::InitGame() {
-    // TraceLog(LOG_INFO, "GAME: InitGame() Called."); // DEBUG
     ResetGameValues();
 }
 
@@ -205,13 +208,8 @@ void GameManager::StartSeekingPhase() {
 }
 
 void GameManager::Update() {
-    //float deltaTime = GetFrameTime();
     GameScreen screenAtFrameStart = this->currentScreen; // Capture screen state BEFORE UI might change it in Draw()
 
-    // The Update... methods below are for ongoing logic for a screen,
-    // NOT for handling button clicks that change screens. Those clicks happen
-    // in UIManager::Draw... methods, which are called in GameManager::Draw().
-    // The screen change is then detected in the *next* frame of this Update() function.
     switch (this->currentScreen) {
         case GameScreen::MAIN_MENU:
             UpdateMainMenu(); // Currently empty
@@ -343,9 +341,10 @@ void GameManager::UpdateInGame() {
                     taggedAnyHider = true;
                 }
             }
-            // Play tag sound if we successfully tagged at least one hider
-            if (taggedAnyHider && player.tagSound.frameCount > 0) {
-                PlaySound(player.tagSound);
+            
+            // Only play tag sound if we actually tagged someone
+            if (taggedAnyHider && tagSound.frameCount > 0) {
+                PlaySound(tagSound);
             }
         }
         
@@ -359,47 +358,37 @@ void GameManager::UpdateInGame() {
 }
 
 void GameManager::CheckWinLossConditions(bool playerGotTagged) {
-    // Only check during SEEKING, and only if not already Game Over
     if (currentPhase == GamePhase::SEEKING && currentScreen != GameScreen::GAME_OVER) { 
         if (hidersRemaining == 0) {
             playerWon = true;
             lastGameTime = SEEKING_PHASE_DURATION - gameTimer;
             currentScreen = GameScreen::GAME_OVER;
-            // Stop current music
             if (seekingPhaseMusic.stream.buffer != NULL) {
                 StopMusicStream(seekingPhaseMusic);
             }
-            // Play victory sound
             if (victorySound.frameCount > 0) {
                 PlaySound(victorySound);
             }
-            // TraceLog(LOG_INFO, "GAME: Player WON. All hiders tagged."); // DEBUG
         } else if (gameTimer <= 0) {
             playerWon = false;
-            lastGameTime = 0; 
+            lastGameTime = 0;
             currentScreen = GameScreen::GAME_OVER;
-            // Stop current music
             if (seekingPhaseMusic.stream.buffer != NULL) {
                 StopMusicStream(seekingPhaseMusic);
             }
-            // Play game over sound
             if (gameOverSound.frameCount > 0) {
                 PlaySound(gameOverSound);
             }
-            // TraceLog(LOG_INFO, "GAME: Player LOST. Timer expired."); // DEBUG
         } else if (playerGotTagged) {
             playerWon = false;
             lastGameTime = SEEKING_PHASE_DURATION - gameTimer;
             currentScreen = GameScreen::GAME_OVER;
-            // Stop current music
             if (seekingPhaseMusic.stream.buffer != NULL) {
                 StopMusicStream(seekingPhaseMusic);
             }
-            // Play game over sound
             if (gameOverSound.frameCount > 0) {
                 PlaySound(gameOverSound);
             }
-            // TraceLog(LOG_INFO, "GAME: Player LOST. Tagged by hider."); // DEBUG
         }
     }
 }

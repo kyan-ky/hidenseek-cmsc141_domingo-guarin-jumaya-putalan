@@ -1,12 +1,13 @@
 #include "player.h"
 #include "hider.h" // For CanTag, and alert check
 #include "map.h"
+#include "game_manager.h" // Include full GameManager definition for accessing members
 #include "raymath.h" // For Vector2Normalize, Vector2Rotate, Vector2Angle
 #include <cmath>    // For atan2f, cosf, sinf, fabsf
 
 Player::Player() : position({0, 0}), rotation(0.0f), speed(PLAYER_SPEED),
                    sprintValue(SPRINT_MAX), isSprinting(false), showAlert(false), 
-                   texture{0}, alertTexture{0}, tagTexture{0}, tagSound{0} { // Initialize textures and sound
+                   texture{0}, alertTexture{0}, tagTexture{0}, gameManager(nullptr) { // Initialize textures and game manager
     
     if (FileExists("seeker_stand.png")) { 
         this->texture = LoadTexture("seeker_stand.png");
@@ -87,11 +88,15 @@ void Player::HandleInput(const Map& map) {
         } else {
             // Try moving only X
             Vector2 newPosX = {newPos.x, position.y};
-            if (map.IsPositionValid(newPosX, PLAYER_RADIUS)) position = newPosX;
+            if (map.IsPositionValid(newPosX, PLAYER_RADIUS)) {
+                position = newPosX;
+            }
             else {
                 // Try moving only Y
                 Vector2 newPosY = {position.x, newPos.y};
-                if (map.IsPositionValid(newPosY, PLAYER_RADIUS)) position = newPosY;
+                if (map.IsPositionValid(newPosY, PLAYER_RADIUS)) {
+                    position = newPosY;
+                }
             }
         }
     }

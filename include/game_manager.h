@@ -23,6 +23,9 @@ public:
     Music seekingPhaseMusic; // Music for seeking phase
     Sound victorySound; // Sound for winning
     Sound gameOverSound; // Sound for losing
+    Sound tagSound;
+    Sound seekerFootsteps;
+    Sound hiderFootsteps;
 
     float gameTimer; // Used for both hiding and seeking phases
     float hidingPhaseElapsed;
